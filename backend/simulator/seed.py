@@ -23,8 +23,9 @@ import numpy as np
 from app.categories import CATEGORIES
 from app.config import settings
 from app.db import db_session, init_db, utcnow
-from app.models import (ActivityMinute, DecisionLog, Friendship, Group, GroupMember, Intervention,
-                        Notification, UsageSession, User)
+from app.models import (ActivityMinute, Credential, DecisionLog, Friendship, Group, GroupMember,
+                        Intervention, Notification, UsageSession, User)
+from app.passwords import hash_password
 from app.sessions import truncate_minute
 
 TEAM = ["Demetris", "Maria", "Andreas", "Sofia", "Elena", "Nikos", "Christina", "Petros"]
@@ -39,6 +40,11 @@ GROUPS = {
 # Friends who belong to no group at all — they only show up under "All friends",
 # which is the whole reason that option exists.
 SOLO_FRIENDS = {"Demetris": ["Petros"]}
+
+# Every seeded user can be signed into with their email and this password, so the
+# demo works from the login screen and not only from a ?token= link.
+DEMO_PASSWORD = "nudge1234"
+EMAIL_DOMAIN = "nudge.app"
 CATS = ["social", "entertainment", "productivity"]
 SERVICES_BY_CAT = {c: CATEGORIES[c]["services"] for c in CATS}
 SERVICES = [s for c in CATS for s in SERVICES_BY_CAT[c]]
@@ -75,7 +81,7 @@ PERSONAS = {
 
 def _reset(db) -> None:
     for model in (ActivityMinute, Intervention, DecisionLog, Notification, UsageSession,
-                  GroupMember, Group, Friendship, User):
+                  GroupMember, Group, Friendship, Credential, User):
         db.query(model).delete()
     db.flush()
 
@@ -86,6 +92,9 @@ def _make_users(db) -> dict[str, User]:
         u = User(name=name, timezone="America/Chicago", persona_verified=True,
                  phone=None, last_seen_at=utcnow())
         db.add(u)
+        db.flush()
+        db.add(Credential(user_id=u.id, email=f"{name.lower()}@{EMAIL_DOMAIN}",
+                          password_hash=hash_password(DEMO_PASSWORD)))
         users[name] = u
     db.flush()
     return users
@@ -208,6 +217,10 @@ def main() -> None:
         for name, g in groups.items():
             print(f"  group {name:16} join={g.join_code}  ({len(GROUPS[name])} members)")
         print(f"\nAPP_NAME={settings.APP_NAME}  API={settings.PUBLIC_API_URL}\n")
+        print(f"\n  Sign in with any of these · password {DEMO_PASSWORD}")
+        for name in users:
+            print(f"    {name.lower()}@{EMAIL_DOMAIN}")
+        print()
         for name, u in users.items():
             print(f"  {name:9} token={u.token}")
             print(f"            invite={u.invite_code}  client_id={u.client_id}")

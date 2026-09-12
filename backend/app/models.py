@@ -186,3 +186,19 @@ class HiddenService(Base):
     __tablename__ = "hidden_services"
     user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), primary_key=True)
     service: Mapped[str] = mapped_column(String(32), primary_key=True)
+
+
+class Credential(Base):
+    """Email + password login for a user.
+
+    Deliberately its own table rather than columns on `users`: SQLAlchemy's
+    create_all adds missing tables but never alters existing ones, so new columns
+    would 500 every teammate whose local SQLite predates them (which is exactly
+    what `sessions.source` did). A new table costs nobody a migration.
+    """
+
+    __tablename__ = "credentials"
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), primary_key=True)
+    email: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

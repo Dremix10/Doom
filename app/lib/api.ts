@@ -20,7 +20,7 @@ async function req<T>(path: string, opts: RequestInit = {}, auth = true): Promis
 }
 
 export type Me = {
-  id: string; name: string; client_id: string; invite_code: string; token: string;
+  id: string; name: string; email: string | null; client_id: string; invite_code: string; token: string;
   persona_verified: boolean; setup_url: string; doh_url: string; shortcuts_url: string;
 };
 export type FriendState = {
@@ -68,8 +68,10 @@ export type Decision = {
 export const api = {
   base: API_BASE,
   health: () => req<any>('/health', {}, false),
-  signup: (name: string, phone?: string) =>
-    req<Me>('/signup', { method: 'POST', body: JSON.stringify({ name, phone }) }, false),
+  signup: (name: string, email: string, password: string) =>
+    req<Me>('/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }, false),
+  login: (email: string, password: string) =>
+    req<Me>('/login', { method: 'POST', body: JSON.stringify({ email, password }) }, false),
   me: () => req<Me>('/me'),
   personaVerify: () => req<Me>('/persona/verify', { method: 'POST' }),
   myStatus: () => req<FriendState>('/me/status'),

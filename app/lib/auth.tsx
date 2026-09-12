@@ -7,7 +7,8 @@ import { getToken, setToken } from './store';
 type AuthCtx = {
   me: Me | null;
   loading: boolean;
-  signup: (name: string, phone?: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
   refresh: () => Promise<void>;
   logout: () => void;
@@ -66,8 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [me]);
 
-  const signup = async (name: string, phone?: string) => {
-    const u = await api.signup(name, phone);
+  const signup = async (name: string, email: string, password: string) => {
+    const u = await api.signup(name, email, password);
+    setToken(u.token); setMe(u);
+  };
+  const login = async (email: string, password: string) => {
+    const u = await api.login(email, password);
     setToken(u.token); setMe(u);
   };
   const loginWithToken = async (token: string) => {
@@ -77,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => { setToken(null); setMe(null); };
 
   return (
-    <Ctx.Provider value={{ me, loading, signup, loginWithToken, refresh, logout }}>
+    <Ctx.Provider value={{ me, loading, signup, login, loginWithToken, refresh, logout }}>
       {children}
     </Ctx.Provider>
   );

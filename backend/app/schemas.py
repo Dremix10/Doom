@@ -6,12 +6,20 @@ from pydantic import BaseModel
 
 class SignupIn(BaseModel):
     name: str
+    email: str
+    password: str
     phone: str | None = None
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
 
 
 class UserOut(BaseModel):
     id: str
     name: str
+    email: str | None
     client_id: str
     invite_code: str
     token: str

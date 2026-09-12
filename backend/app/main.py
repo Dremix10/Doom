@@ -22,9 +22,10 @@ from sqlalchemy.orm import Session
 from . import categories as cats
 from .config import settings
 from .db import get_db, init_db, utcnow
-from .models import (ActivityMinute, Friendship, Group, GroupMember, HiddenService, Notification,
+from .models import (ActivityMinute, Credential, Friendship, Group, GroupMember, HiddenService, Notification,
                      DecisionLog, Intervention, PushSubscription, UsageSession, User)
 from . import schemas
+from .passwords import MIN_LENGTH, hash_password, verify_password
 from .services import label
 from .sessions import effective_minutes
 from .sensor.poller import run_poller
@@ -84,9 +85,11 @@ def health(db: Session = Depends(get_db)) -> dict:
 
 # ---- onboarding ------------------------------------------------------------
 
-def _user_out(user: User) -> schemas.UserOut:
+def _user_out(user: User, db: Session) -> schemas.UserOut:
+    cred = db.get(Credential, user.id)
     return schemas.UserOut(
-        id=user.id, name=user.name, client_id=user.client_id, invite_code=user.invite_code,
+        id=user.id, name=user.name, email=cred.email if cred else None,
+        client_id=user.client_id, invite_code=user.invite_code,
         token=user.token, persona_verified=user.persona_verified,
         setup_url=f"{settings.PUBLIC_API_URL}/setup/{user.token}", doh_url=doh_url_for(user),
         shortcuts_url=f"{settings.PUBLIC_API_URL}/shortcuts/{user.token}",
@@ -95,22 +98,46 @@ def _user_out(user: User) -> schemas.UserOut:
 
 @app.post("/signup", response_model=schemas.UserOut)
 def signup(body: schemas.SignupIn, db: Session = Depends(get_db)) -> schemas.UserOut:
+    email = (body.email or "").strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(400, "that doesn't look like an email address")
+    if len(body.password or "") < MIN_LENGTH:
+        raise HTTPException(400, f"password must be at least {MIN_LENGTH} characters")
+    if db.scalar(select(Credential).where(Credential.email == email)):
+        raise HTTPException(409, "an account with that email already exists")
     user = User(name=body.name.strip()[:80] or "Anon", phone=(body.phone or None))
     db.add(user)
     db.flush()
-    return _user_out(user)
+    db.add(Credential(user_id=user.id, email=email, password_hash=hash_password(body.password)))
+    db.flush()
+    return _user_out(user, db)
+
+
+@app.post("/login", response_model=schemas.UserOut)
+def login(body: schemas.LoginIn, db: Session = Depends(get_db)) -> schemas.UserOut:
+    email = (body.email or "").strip().lower()
+    cred = db.scalar(select(Credential).where(Credential.email == email))
+    # Same message either way: don't confirm which emails have accounts.
+    if not cred or not verify_password(body.password or "", cred.password_hash):
+        raise HTTPException(401, "wrong email or password")
+    user = db.get(User, cred.user_id)
+    if not user:
+        raise HTTPException(401, "wrong email or password")
+    user.last_seen_at = utcnow()
+    db.flush()
+    return _user_out(user, db)
 
 
 @app.get("/me", response_model=schemas.UserOut)
-def me(user: User = Depends(current_user)) -> schemas.UserOut:
-    return _user_out(user)
+def me(user: User = Depends(current_user), db: Session = Depends(get_db)) -> schemas.UserOut:
+    return _user_out(user, db)
 
 
 @app.post("/persona/verify", response_model=schemas.UserOut)
 def persona_verify(user: User = Depends(current_user), db: Session = Depends(get_db)) -> schemas.UserOut:
     """Stub for the Persona hosted-flow callback. Sandbox always passes for the demo."""
     user.persona_verified = True
-    return _user_out(user)
+    return _user_out(user, db)
 
 
 @app.get("/setup/{token}", response_class=HTMLResponse)
