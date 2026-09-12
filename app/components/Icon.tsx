@@ -5,7 +5,7 @@
 import Svg, { Circle, Path, Rect, G } from 'react-native-svg';
 import { useColors } from '../lib/theme';
 
-export type IconName = 'person' | 'people' | 'gear' | 'chart' | 'chevron' | 'chevronDown' | 'check';
+export type IconName = 'person' | 'people' | 'gear' | 'chart' | 'chevron' | 'chevronDown' | 'check' | 'clock';
 
 type Props = {
   name: IconName;
@@ -90,6 +90,16 @@ export function Icon({ name, size = 26, color: colorProp, bg: bgProp }: Props) {
         <Rect x={3.2} y={12.4} width={4.6} height={8.4} rx={1.6} fill={color} />
         <Rect x={9.7} y={5.2} width={4.6} height={15.6} rx={1.6} fill={color} />
         <Rect x={16.2} y={9.2} width={4.6} height={11.6} rx={1.6} fill={color} />
+      </Svg>
+    );
+  }
+
+  if (name === 'clock') {
+    return (
+      <Svg {...p}>
+        <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} fill="none" />
+        <Path d="M12 6.6V12l3.6 2.4" stroke={color} strokeWidth={2} strokeLinecap="round"
+          strokeLinejoin="round" fill="none" />
       </Svg>
     );
   }
