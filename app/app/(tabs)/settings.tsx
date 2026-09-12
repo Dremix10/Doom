@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Group } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../../lib/theme';
+import { enablePush, permissionState } from '../../lib/push';
 
 export default function Settings() {
   const { me, refresh, logout } = useAuth();
@@ -19,6 +20,15 @@ export default function Settings() {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pushMsg, setPushMsg] = useState('');
+  const [pushOn, setPushOn] = useState(permissionState() === 'granted');
+
+  const turnOnPush = async () => {
+    setPushMsg('');
+    const r = await enablePush();
+    if (r.ok) { setPushOn(true); setPushMsg('Notifications on for this device.'); }
+    else setPushMsg(r.reason || 'Could not turn on notifications.');
+  };
 
   const load = useCallback(async () => {
     try { setGroups(await api.groups()); } catch { /* ignore */ }
@@ -163,6 +173,22 @@ export default function Settings() {
             <Text style={s.btnText}>Verify with Persona</Text>
           </Pressable>
         )}
+      </View>
+
+      <View style={s.card}>
+        <Text style={s.step}>3 · Notifications</Text>
+        <Text style={s.body}>
+          Get a nudge or a pull-out as a real notification, even when the app is closed.
+          On iPhone: add Nudge to your Home Screen, open it from there, then turn these on.
+        </Text>
+        {pushOn ? (
+          <Text style={s.verified}>✓ Notifications on</Text>
+        ) : (
+          <Pressable style={({ pressed }) => [s.btn, pressed && s.pressed]} onPress={turnOnPush}>
+            <Text style={s.btnText}>Turn on notifications</Text>
+          </Pressable>
+        )}
+        {!!pushMsg && <Text style={s.hint}>{pushMsg}</Text>}
       </View>
 
       <Pressable style={({ pressed }) => [s.logout, pressed && s.pressed]} onPress={logout}>

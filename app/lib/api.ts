@@ -80,4 +80,7 @@ export const api = {
   markRead: (id: string) => req<any>(`/notifications/${id}/read`, { method: 'POST' }),
   timeline: () => req<Decision[]>('/me/timeline'),
   heartbeat: () => req<any>('/heartbeat', { method: 'POST' }),
+  pushConfig: () => req<{ vapid_public_key: string; enabled: boolean }>('/push/config', {}, false),
+  pushSubscribe: (endpoint: string, p256dh: string, auth: string) =>
+    req<any>('/push/subscribe', { method: 'POST', body: JSON.stringify({ endpoint, p256dh, auth }) }),
 };

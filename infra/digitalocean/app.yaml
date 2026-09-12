@@ -1,8 +1,9 @@
-# DigitalOcean App Platform spec for the Nudge backend.
-# Usage: doctl apps create --spec infra/digitalocean/app.yaml
-# (or paste into the App Platform UI). It builds backend/Dockerfile and runs it.
-name: nudge-api
+# DigitalOcean App Platform spec: the Nudge API (Docker) + the web PWA (static site),
+# both served over HTTPS. Deploy: doctl apps create --spec infra/digitalocean/app.yaml
+# (or paste in the App Platform UI). Set the secret values in the dashboard after.
+name: nudge
 region: nyc
+
 services:
   - name: api
     dockerfile_path: backend/Dockerfile
@@ -20,14 +21,24 @@ services:
       - key: APP_NAME
         value: Nudge
       - key: PUBLIC_API_URL
-        value: ${APP_URL}          # App Platform injects the public URL
-      # Set these as SECRETs in the dashboard (or here as type: SECRET):
-      # GEMINI_API_KEY, ELEVENLABS_API_KEY, DATABASE_URL, ADGUARD_URL,
-      # ADGUARD_USER, ADGUARD_PASS, TWILIO_*, VAPID_*
-databases:
-  # Optional managed Postgres. For the Tiger Data challenge use Tiger Cloud
-  # instead and set DATABASE_URL to it; then remove this block.
-  - name: nudge-db
-    engine: PG
-    version: "16"
-    production: false
+        value: ${APP_URL}
+      # Notifications (Web Push). Generate with: python -m app.tools.vapid
+      # Add these as SECRET-type env vars in the dashboard:
+      #   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+      # Optional integrations (also secrets):
+      #   GEMINI_API_KEY, ELEVENLABS_API_KEY, DATABASE_URL, ADGUARD_*, TWILIO_*
+
+static_sites:
+  - name: web
+    source_dir: app
+    github:
+      repo: Dremix10/Doom
+      branch: main
+      deploy_on_push: true
+    # Expo web export. public/index.html already carries the PWA + service-worker
+    # tags, so no post-step is needed.
+    build_command: npm ci && npx expo export --platform web
+    output_dir: dist
+    envs:
+      - key: EXPO_PUBLIC_API_URL
+        value: ${api.PUBLIC_URL}   # point the app at the API component

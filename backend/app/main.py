@@ -468,3 +468,10 @@ def shortcut_event(token: str, app_name: str, event: str, db: Session = Depends(
         return {"ok": True, "event": "close", "service": service,
                 "minutes": round(s.minutes, 1) if s else 0, "closed": bool(s)}
     raise HTTPException(400, f"unknown event '{event}' (use open or close)")
+
+
+@app.get("/push/config")
+def push_config() -> dict:
+    """Public: the VAPID public key the browser needs to subscribe to Web Push,
+    and whether the server is configured to send. No auth (needed before login)."""
+    return {"vapid_public_key": settings.VAPID_PUBLIC_KEY, "enabled": bool(settings.VAPID_PRIVATE_KEY)}

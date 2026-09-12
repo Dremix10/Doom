@@ -47,3 +47,17 @@ same droplet behind Caddy. Open that URL in Safari → Share → Add to Home Scr
 ADGUARD_URL/USER/PASS, DOH_BASE_URL, TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM,
 VAPID_PUBLIC_KEY/PRIVATE_KEY/SUBJECT, DEMO_MODE`. See `backend/.env.example`.
 Everything is optional; unset integrations degrade gracefully.
+
+## Notifications (Web Push) — no Apple developer account
+
+Once the web app is on HTTPS (App Platform gives you that automatically), push
+works on installed PWAs, iOS 16.4+ (Add to Home Screen, open it, then Settings →
+Turn on notifications), plus Android and desktop. Set three secrets on the API:
+
+```
+python -m app.tools.vapid   # prints VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
+```
+
+Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:you@domain`
+as env vars on the `api` service. The client reads the public key from
+`/push/config` at runtime; nothing to rebuild.
