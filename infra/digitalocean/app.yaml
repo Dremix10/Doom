@@ -1,0 +1,33 @@
+# DigitalOcean App Platform spec for the Nudge backend.
+# Usage: doctl apps create --spec infra/digitalocean/app.yaml
+# (or paste into the App Platform UI). It builds backend/Dockerfile and runs it.
+name: nudge-api
+region: nyc
+services:
+  - name: api
+    dockerfile_path: backend/Dockerfile
+    source_dir: backend
+    github:
+      repo: Dremix10/Doom
+      branch: main
+      deploy_on_push: true
+    http_port: 8000
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    health_check:
+      http_path: /health
+    envs:
+      - key: APP_NAME
+        value: Nudge
+      - key: PUBLIC_API_URL
+        value: ${APP_URL}          # App Platform injects the public URL
+      # Set these as SECRETs in the dashboard (or here as type: SECRET):
+      # GEMINI_API_KEY, ELEVENLABS_API_KEY, DATABASE_URL, ADGUARD_URL,
+      # ADGUARD_USER, ADGUARD_PASS, TWILIO_*, VAPID_*
+databases:
+  # Optional managed Postgres. For the Tiger Data challenge use Tiger Cloud
+  # instead and set DATABASE_URL to it; then remove this block.
+  - name: nudge-db
+    engine: PG
+    version: "16"
+    production: false
