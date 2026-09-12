@@ -23,6 +23,7 @@ from . import categories as cats
 from .config import settings
 from .db import get_db, init_db, utcnow
 from .models import (ActivityMinute, Credential, Friendship, Group, GroupMember, HiddenService, Notification,
+                     QueuedMessage,
                      DecisionLog, Intervention, PushSubscription, UsageSession, User)
 from . import schemas
 from .passwords import MIN_LENGTH, hash_password, verify_password
@@ -33,6 +34,7 @@ from .sensor.profile import build_mobileconfig, setup_page, doh_url_for
 from .sensor import shortcuts as shortcuts_mod
 from .agent.loop import run_agent
 from .agent import friends as friends_mod
+from .agent import scheduled as sched
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("nudge")
@@ -490,6 +492,35 @@ def pull_out(body: schemas.PullOutIn, user: User = Depends(current_user), db: Se
     note = notify_mod.send(db, target.id, "pullout", f"{user.name} pulled you out",
                            msg, payload={"from": user.name, "from_id": user.id}, sms=True)
     return _note_out(note)
+
+
+# ---- scheduled messages ----------------------------------------------------
+
+@app.post("/messages/queue", response_model=schemas.QueuedMessageOut)
+def queue_message(body: schemas.QueueMessageIn, user: User = Depends(current_user),
+                  db: Session = Depends(get_db)):
+    """Leave a message for a friend; the agent picks when it lands.
+
+    Delivery is decided in agent/scheduled.py — next time they're doomscrolling,
+    or their historically worst stretch of the day, whichever comes first.
+    """
+    target = db.get(User, body.target_id)
+    reachable = target and (db.get(Friendship, (user.id, target.id)) or _shares_a_group(db, user, target))
+    if not reachable:
+        raise HTTPException(404, "not in any of your groups")
+    if target.id == user.id:
+        raise HTTPException(400, "leave a message for a friend, not yourself")
+    text = (body.text or "").strip()[:280]
+    if not text:
+        raise HTTPException(400, "the message is empty")
+
+    msg = QueuedMessage(from_user_id=user.id, to_user_id=target.id, text=text,
+                        expires_at=sched.expires_after())
+    db.add(msg)
+    db.flush()
+    return schemas.QueuedMessageOut(id=msg.id, to_id=target.id, to_name=target.name, text=msg.text,
+                                    status=msg.status, created_at=msg.created_at,
+                                    expires_at=msg.expires_at)
 
 
 # ---- feed / notifications --------------------------------------------------

@@ -148,6 +148,21 @@ class PullOutIn(BaseModel):
     message: str | None = None
 
 
+class QueueMessageIn(BaseModel):
+    target_id: str
+    text: str
+
+
+class QueuedMessageOut(BaseModel):
+    id: str
+    to_id: str
+    to_name: str
+    text: str
+    status: str
+    created_at: datetime
+    expires_at: datetime
+
+
 class PushSubIn(BaseModel):
     endpoint: str
     p256dh: str

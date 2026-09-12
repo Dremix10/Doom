@@ -99,7 +99,7 @@ def clear_expired_interrupts(db: Session) -> None:
 def evaluate_outcomes(db: Session) -> None:
     """Mark interventions success/fail: success if the session ended within 5 min of the nudge."""
     now = utcnow()
-    stmt = select(Intervention).where(Intervention.outcome == "pending", Intervention.kind.in_(("nudge", "escalate", "pullout")))
+    stmt = select(Intervention).where(Intervention.outcome == "pending", Intervention.kind.in_(("nudge", "escalate", "pullout", "scheduled")))
     for iv in db.scalars(stmt):
         session = db.get(UsageSession, iv.session_id) if iv.session_id else None
         deadline = iv.created_at + timedelta(minutes=5)
@@ -109,7 +109,7 @@ def evaluate_outcomes(db: Session) -> None:
             iv.outcome, iv.evaluated_at = "fail", now
         else:
             continue
-        if iv.kind in ("escalate", "pullout") and iv.friend_id:
+        if iv.kind in ("escalate", "pullout", "scheduled") and iv.friend_id:
             friends_mod.record_outcome(db, iv.user_id, iv.friend_id, iv.created_at.hour, iv.outcome == "success")
 
 
