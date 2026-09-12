@@ -53,6 +53,17 @@ def _nudges_this_session(db: Session, session_id: str) -> int:
 
 
 def _log(db: Session, user_id: str, session_id: str, action: str, justification: str, features: dict, source: str) -> None:
+    # Collapse runs of "stayed quiet": if the last logged decision for this user was
+    # also quiet, refresh it in place instead of flooding the timeline every tick.
+    if action == "quiet":
+        last = db.scalar(select(DecisionLog).where(DecisionLog.user_id == user_id)
+                         .order_by(DecisionLog.created_at.desc()).limit(1))
+        if last is not None and last.action == "quiet":
+            last.created_at = utcnow()
+            last.justification = justification
+            last.session_id = session_id
+            last.features = __import__("json").dumps(features, default=str)
+            return
     db.add(DecisionLog(user_id=user_id, session_id=session_id, action=action,
                        justification=justification, features=__import__("json").dumps(features, default=str), source=source))
 

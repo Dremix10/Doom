@@ -16,7 +16,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: C.faint,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'You', tabBarIcon: ({ color }) => <Icon label="◎" color={color} /> }} />
+      <Tabs.Screen name="you" options={{ title: 'You', tabBarIcon: ({ color }) => <Icon label="◎" color={color} /> }} />
       <Tabs.Screen name="friends" options={{ title: 'Friends', tabBarIcon: ({ color }) => <Icon label="♦" color={color} /> }} />
       <Tabs.Screen name="setup" options={{ title: 'Setup', tabBarIcon: ({ color }) => <Icon label="⚙" color={color} /> }} />
     </Tabs>
