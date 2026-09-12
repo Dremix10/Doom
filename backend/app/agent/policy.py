@@ -153,13 +153,26 @@ def act_on_session(db: Session, session: UsageSession) -> str:
         return "quiet"
 
     friend = friends_mod.choose_friend(db, session.user_id) if can_escalate else None
+    # It's past time to escalate but no friend is free to step in: HOLD. Falling back
+    # to another nudge here would bypass the nudge cooldown and spam the user (and it
+    # hits everyone with an open problem session and no available friend).
+    if can_escalate and friend is None:
+        _log(db, session.user_id, session.id, "quiet",
+             "Past a nudge, but no friend is free to step in — holding.", feats.to_dict(), "guardrail")
+        return "quiet"
+
     _llm = claude_agent if settings.ANTHROPIC_API_KEY else gemini
-    decision, source = _llm.decide(feats, state, allow_escalate=can_escalate, friend_hint=friend.name if friend else None)
+    can_escalate_now = can_escalate and friend is not None
+    decision, source = _llm.decide(feats, state, allow_escalate=can_escalate_now, friend_hint=friend.name if friend else None)
     action = decision.get("action", "quiet")
-    if action == "escalate" and not can_escalate:
+    if action == "escalate" and not can_escalate_now:
         action = "nudge"
-    if action == "escalate" and friend is None:
-        action = "nudge"
+    # Belt-and-suspenders: never send a plain nudge inside the cooldown window,
+    # whatever the model returns.
+    if action == "nudge" and had_nudge and nudge_in_cooldown:
+        _log(db, session.user_id, session.id, "quiet",
+             "Already nudged recently; giving it space.", feats.to_dict(), "guardrail")
+        return "quiet"
 
     _log(db, session.user_id, session.id, action, decision.get("justification", ""), feats.to_dict(), source)
 
