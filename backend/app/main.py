@@ -255,6 +255,15 @@ def join_group(body: schemas.JoinGroupIn, user: User = Depends(current_user),
     if not db.get(GroupMember, (group.id, user.id)):
         db.add(GroupMember(group_id=group.id, user_id=user.id))
         db.flush()
+        # Co-members become friends so the agent can escalate to them and they can
+        # pull you out — escalation and pull-out both run on the friendship graph.
+        for mid in list(db.scalars(select(GroupMember.user_id).where(GroupMember.group_id == group.id))):
+            if mid == user.id:
+                continue
+            for a, b in ((user.id, mid), (mid, user.id)):
+                if not db.get(Friendship, (a, b)):
+                    db.add(Friendship(user_id=a, friend_id=b))
+        db.flush()
     return _group_out(db, group, user)
 
 
