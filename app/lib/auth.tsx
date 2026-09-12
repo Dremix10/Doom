@@ -19,6 +19,7 @@ export const useAuth = () => useContext(Ctx);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingInvite, setPendingInvite] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!getToken()) { setMe(null); return; }
@@ -31,11 +32,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         if (typeof window !== 'undefined' && window.location?.search) {
-          const t = new URLSearchParams(window.location.search).get('token');
-          if (t) {
-            setToken(t);
+          const params = new URLSearchParams(window.location.search);
+          const t = params.get('token');
+          if (t) setToken(t);
+          // An invite link is ?invite=CODE. Stash it: we can only act on it once
+          // we know who the current user is, which may be after a fresh signup.
+          const invite = params.get('invite');
+          if (invite) setPendingInvite(invite.toUpperCase());
+          if (t || invite) {
             const url = new URL(window.location.href);
             url.searchParams.delete('token');
+            url.searchParams.delete('invite');
             window.history.replaceState({}, '', url.toString());
           }
         }
@@ -44,6 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     })();
   }, [refresh]);
+
+  // Redeem an invite link as soon as there's someone to add them to.
+  useEffect(() => {
+    if (!me || !pendingInvite) return;
+    api.addFriend(pendingInvite).catch(() => {}).finally(() => setPendingInvite(null));
+  }, [me, pendingInvite]);
 
   // Heartbeat every 30s so availability-based friend selection works.
   useEffect(() => {

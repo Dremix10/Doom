@@ -7,12 +7,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { api, Leaderboard as Board, LeaderboardRow } from '../../lib/api';
 import { MenuSection, TitleMenu } from '../../components/TitleMenu';
 import { PersonSheet } from '../../components/PersonSheet';
+import { AddFriendSheet } from '../../components/AddFriendSheet';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, stateColor } from '../../lib/theme';
 
 const WINDOW_LABEL: Record<string, string> = { today: 'Today', week: 'This week' };
+// Sentinel ids the group section uses alongside real group ids.
+const ALL = 'all';
+const MANAGE = '__manage';
 
 function duration(mins: number): string {
   const m = Math.round(mins);
@@ -30,6 +35,7 @@ export default function LeaderboardScreen() {
   const [board, setBoard] = useState<Board | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selected, setSelected] = useState<LeaderboardRow | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -46,19 +52,22 @@ export default function LeaderboardScreen() {
   const current = board?.categories.find((c) => c.id === board.category);
   const group = board?.groups.find((g) => g.id === board.group_id);
 
-  const sections: MenuSection[] = [];
-  if (board?.groups.length) {
-    sections.push({
+  const sections: MenuSection[] = [
+    {
       id: 'group',
       title: 'Group',
-      selected: board.group_id ?? '',
-      items: board.groups.map((g) => ({
-        id: g.id,
-        label: g.name,
-        detail: `${g.member_count} ${g.member_count === 1 ? 'member' : 'members'}`,
-      })),
-    });
-  }
+      selected: board?.group_id ?? ALL,
+      items: [
+        { id: ALL, label: 'All friends', detail: 'everyone you\u2019ve added' },
+        ...(board?.groups ?? []).map((g) => ({
+          id: g.id,
+          label: g.name,
+          detail: `${g.member_count} ${g.member_count === 1 ? 'member' : 'members'}`,
+        })),
+        { id: MANAGE, label: 'Manage groups\u2026', action: true },
+      ],
+    },
+  ];
   sections.push(
     {
       id: 'category',
@@ -75,6 +84,7 @@ export default function LeaderboardScreen() {
   );
 
   const onSelect = (sectionId: string, itemId: string) => {
+    if (itemId === MANAGE) { router.push('/settings'); return; }
     if (sectionId === 'group') setGroupId(itemId);
     else if (sectionId === 'category') setCategory(itemId);
     else setPeriod(itemId);
@@ -100,7 +110,20 @@ export default function LeaderboardScreen() {
           />
         }
       >
-        <TitleMenu label={group?.name ?? 'Leaderboard'} sections={sections} onSelect={onSelect} />
+        <View style={s.navBar}>
+          <Pressable
+            onPress={() => setAdding(true)}
+            hitSlop={8}
+            style={({ pressed }) => [s.navBtn, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={s.navBtnText}>Add Friend</Text>
+          </Pressable>
+        </View>
+        <TitleMenu
+          label={board?.group_id === ALL ? 'All friends' : group?.name ?? 'Leaderboard'}
+          sections={sections}
+          onSelect={onSelect}
+        />
         <Text style={s.caption}>
           {current?.label ?? 'Social media'} · {WINDOW_LABEL[period] ?? period}
           {current ? ` · ${current.blurb}` : ''}
@@ -129,20 +152,24 @@ export default function LeaderboardScreen() {
 
         {board && rows.length <= 1 && (
           <Text style={s.empty}>
-            {board.groups.length
-              ? 'Nobody else in this group yet. Share its join code from the Groups tab.'
-              : "You're not in a group yet. Create one in the Groups tab and share the code."}
+            {board.group_id === ALL
+              ? "No friends yet. Tap Add Friend and share your code or link."
+              : 'Nobody else in this group yet. Share its join code from Settings.'}
           </Text>
         )}
       </ScrollView>
 
       <PersonSheet row={selected} onClose={() => setSelected(null)} onChanged={load} />
+      <AddFriendSheet visible={adding} onClose={() => setAdding(false)} onAdded={load} />
     </>
   );
 }
 
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
+  navBar: { flexDirection: 'row', alignItems: 'center', minHeight: 34, marginBottom: S.xs },
+  navBtn: { justifyContent: 'center' },
+  navBtnText: { ...T.body, color: C.accent, fontWeight: '600' },
   caption: { ...T.footnote, color: C.faint, marginTop: S.xs, marginBottom: S.lg },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,

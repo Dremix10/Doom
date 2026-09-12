@@ -34,7 +34,6 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="leaderboard" options={{ title: 'Board', tabBarIcon: tab('chart') }} />
-      <Tabs.Screen name="groups" options={{ title: 'Groups', tabBarIcon: tab('people') }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: tab('gear') }} />
     </Tabs>
   );

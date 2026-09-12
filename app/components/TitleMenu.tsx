@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
 
-export type MenuItem = { id: string; label: string; detail?: string };
+export type MenuItem = { id: string; label: string; detail?: string; action?: boolean };
 export type MenuSection = { id: string; title: string; items: MenuItem[]; selected: string };
 
 type Props = {
@@ -67,10 +67,12 @@ export function TitleMenu({ label, sections, onSelect }: Props) {
                         style={({ pressed }) => [s.row, pressed && { backgroundColor: C.line }]}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={[s.rowLabel, selected && { color: C.accent }]}>{item.label}</Text>
+                          <Text style={[s.rowLabel, (selected || item.action) && { color: C.accent }]}>
+                            {item.label}
+                          </Text>
                           {!!item.detail && <Text style={s.rowDetail}>{item.detail}</Text>}
                         </View>
-                        {selected && <Icon name="check" size={18} color={C.accent} />}
+                        {selected && !item.action && <Icon name="check" size={18} color={C.accent} />}
                       </Pressable>
                     );
                   })}
