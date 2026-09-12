@@ -62,7 +62,7 @@ last line of defense is a human friend, not a timer you'll ignore.
 
 ```bash
 make install          # backend venv + app deps  (needs python3.12 and node)
-make seed             # 14 days of history for 4 users (Demetris, Maria, Andreas, Sofia)
+make seed             # 21 days of history for 4 users (Demetris, Maria, Andreas, Sofia)
 make demo             # API in demo mode at :8000
 # new terminal:
 make scroll USER=Demetris SVC=tiktok MIN=2   # simulate a doomscroll; watch the agent react

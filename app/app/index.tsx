@@ -5,5 +5,5 @@ import { useAuth } from '../lib/auth';
 
 export default function Index() {
   const { me } = useAuth();
-  return <Redirect href={me ? '/you' : '/onboarding'} />;
+  return <Redirect href={me ? '/leaderboard' : '/onboarding'} />;
 }

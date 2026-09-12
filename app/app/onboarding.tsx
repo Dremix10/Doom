@@ -1,19 +1,21 @@
 // Entry gate: if signed in, go to the app; otherwise a zero-friction sign-up.
 // The whole product promise is "add your friends, and that's it", so onboarding
-// is one field.
+// is one field. No tab bar here, so this screen owns both safe-area insets.
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth';
-import { C } from '../lib/theme';
+import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
 
 export default function Index() {
   const { me, signup } = useAuth();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
-  if (me) return <Redirect href="/you" />;
+  if (me) return <Redirect href="/leaderboard" />;
 
   const go = async () => {
     if (!name.trim()) return;
@@ -22,7 +24,7 @@ export default function Index() {
   };
 
   return (
-    <View style={s.wrap}>
+    <View style={[s.wrap, { paddingTop: insets.top + S.xxl, paddingBottom: insets.bottom + S.xxl }]}>
       <View style={{ flex: 1 }} />
       <Text style={s.logo}>Nudge</Text>
       <Text style={s.tag}>Screen-time accountability with zero settings.</Text>
@@ -30,7 +32,7 @@ export default function Index() {
         Add your friends, and that's it. An agent watches your usage against your own baseline
         and asks the one friend most likely to get through when you're doomscrolling.
       </Text>
-      <View style={{ height: 28 }} />
+      <View style={{ height: S.xxl }} />
       <Text style={s.label}>What's your name?</Text>
       <TextInput
         style={s.input}
@@ -39,11 +41,16 @@ export default function Index() {
         value={name}
         onChangeText={setName}
         autoCapitalize="words"
+        autoCorrect={false}
         onSubmitEditing={go}
         returnKeyType="go"
       />
       {!!err && <Text style={s.err}>{err}</Text>}
-      <Pressable style={[s.btn, (!name.trim() || busy) && { opacity: 0.5 }]} onPress={go} disabled={busy || !name.trim()}>
+      <Pressable
+        style={({ pressed }) => [s.btn, (!name.trim() || busy) && { opacity: 0.5 }, pressed && { opacity: 0.75 }]}
+        onPress={go}
+        disabled={busy || !name.trim()}
+      >
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Get started</Text>}
       </Pressable>
       <Text style={s.fine}>No schedules. No limits. No blocklists.</Text>
@@ -53,17 +60,21 @@ export default function Index() {
 }
 
 const s = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: C.bg, padding: 28 },
-  logo: { color: C.text, fontSize: 44, fontWeight: '800', letterSpacing: -1 },
-  tag: { color: C.accent, fontSize: 18, fontWeight: '600', marginTop: 6 },
-  sub: { color: C.dim, fontSize: 15, lineHeight: 22, marginTop: 14 },
-  label: { color: C.dim, fontSize: 14, marginBottom: 8 },
+  wrap: { flex: 1, backgroundColor: C.bg, paddingHorizontal: S.xxl },
+  logo: { ...T.largeTitle, color: C.text, fontSize: 44, lineHeight: 50, letterSpacing: -0.5 },
+  tag: { ...T.title3, color: C.accent, marginTop: S.xs + 2 },
+  sub: { ...T.callout, color: C.dim, lineHeight: 22, marginTop: S.md + 2 },
+  label: { ...T.subhead, color: C.dim, marginBottom: S.sm },
   input: {
-    backgroundColor: C.card, color: C.text, borderRadius: 14, padding: 16, fontSize: 18,
-    borderWidth: 1, borderColor: C.line,
+    backgroundColor: C.card, color: C.text, borderRadius: R.lg, ...CONTINUOUS,
+    paddingHorizontal: S.lg, minHeight: MIN_TAP + 10, ...T.title3, fontWeight: '400',
+    borderWidth: HAIRLINE, borderColor: C.line,
   },
-  err: { color: C.problem, marginTop: 10 },
-  btn: { backgroundColor: C.accent, borderRadius: 14, padding: 17, alignItems: 'center', marginTop: 16 },
-  btnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  fine: { color: C.faint, fontSize: 13, textAlign: 'center', marginTop: 20 },
+  err: { ...T.subhead, color: C.problem, marginTop: S.sm + 2 },
+  btn: {
+    backgroundColor: C.accent, borderRadius: R.lg, ...CONTINUOUS, minHeight: MIN_TAP + 8,
+    alignItems: 'center', justifyContent: 'center', marginTop: S.lg,
+  },
+  btnText: { ...T.title3, color: '#fff', fontWeight: '600' },
+  fine: { ...T.footnote, color: C.faint, textAlign: 'center', marginTop: S.xl },
 });

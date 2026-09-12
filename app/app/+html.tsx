@@ -3,6 +3,11 @@ import type { ReactNode } from 'react';
 
 // This file is web-only and used to configure the root HTML for every
 // web page during static rendering.
+//
+// NOTE: it is currently INERT. app.json sets web.output = "single", and in that
+// mode Expo serves public/index.html instead and never renders this file. Edit
+// public/index.html — the viewport, PWA metas and app-shell CSS all live there.
+// This only starts being used if web.output changes to "static" or "server".
 // The contents of this function only run in Node.js environments and
 // do not have access to the DOM or browser APIs.
 export default function Root({ children }: { children: ReactNode }) {
