@@ -27,7 +27,7 @@ from app.models import (ActivityMinute, DecisionLog, Friendship, Group, GroupMem
                         Notification, UsageSession, User)
 from app.sessions import truncate_minute
 
-TEAM = ["Demetris", "Maria", "Andreas", "Sofia", "Elena", "Nikos", "Christina"]
+TEAM = ["Demetris", "Maria", "Andreas", "Sofia", "Elena", "Nikos", "Christina", "Petros"]
 
 # Two leagues with different line-ups, so switching group visibly changes the board.
 # Demetris (the demo login) is in both.
@@ -35,6 +35,10 @@ GROUPS = {
     "Roommates": ["Demetris", "Maria", "Andreas", "Sofia"],
     "CS Study Group": ["Demetris", "Maria", "Elena", "Nikos", "Christina"],
 }
+
+# Friends who belong to no group at all — they only show up under "All friends",
+# which is the whole reason that option exists.
+SOLO_FRIENDS = {"Demetris": ["Petros"]}
 CATS = ["social", "entertainment", "productivity"]
 SERVICES_BY_CAT = {c: CATEGORIES[c]["services"] for c in CATS}
 SERVICES = [s for c in CATS for s in SERVICES_BY_CAT[c]]
@@ -64,6 +68,8 @@ PERSONAS = {
               "mix": {"social": 0.30, "entertainment": 0.52, "productivity": 0.18}},
     "Christina": {"sessions_per_day": 8, "night_owl": False, "fav": "instagram",
                   "mix": {"social": 0.48, "entertainment": 0.22, "productivity": 0.30}},
+    "Petros": {"sessions_per_day": 6, "night_owl": False, "fav": "youtube",
+               "mix": {"social": 0.34, "entertainment": 0.40, "productivity": 0.26}},
 }
 
 
@@ -100,6 +106,15 @@ def _make_groups(db, users: dict[str, User]) -> dict[str, Group]:
                 if a.id != b.id and not db.get(Friendship, (a.id, b.id)):
                     db.add(Friendship(user_id=a.id, friend_id=b.id))
         groups[name] = group
+    # Friendships that exist outside any group.
+    for owner, others in SOLO_FRIENDS.items():
+        a = users.get(owner)
+        for other in others:
+            b = users.get(other)
+            if a and b:
+                for x, y in ((a.id, b.id), (b.id, a.id)):
+                    if not db.get(Friendship, (x, y)):
+                        db.add(Friendship(user_id=x, friend_id=y))
     db.flush()
     return groups
 

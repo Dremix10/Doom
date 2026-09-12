@@ -172,6 +172,9 @@ def list_friends(user: User = Depends(current_user), db: Session = Depends(get_d
 
 # ---- groups ----------------------------------------------------------------
 
+# Sentinel group id meaning "everyone I've added", groups or not.
+ALL_GROUPS = "all"
+
 def _group_out(db: Session, group: Group, user: User) -> schemas.GroupOut:
     member_ids = list(db.scalars(select(GroupMember.user_id).where(GroupMember.group_id == group.id)))
     names = [u.name for u in (db.get(User, i) for i in member_ids) if u]
@@ -295,7 +298,12 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
     start, end = _window_bounds(now, days)
 
     groups = _my_groups(db, user)
-    group = next((g for g in groups if g.id == group_id), None) or (groups[0] if groups else None)
+    # `all` is an explicit choice, not just the no-groups fallback: some friends
+    # aren't in any group, and you still want to see them ranked.
+    if group_id == ALL_GROUPS:
+        group = None
+    else:
+        group = next((g for g in groups if g.id == group_id), None) or (groups[0] if groups else None)
     if group:
         member_ids = list(db.scalars(
             select(GroupMember.user_id).where(GroupMember.group_id == group.id)))
@@ -330,7 +338,7 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
         r.rank = i
 
     return schemas.LeaderboardOut(
-        group_id=group.id if group else None,
+        group_id=group.id if group else ALL_GROUPS,
         groups=[_group_out(db, g, user) for g in groups],
         category=cat_id, window=win_id, lower_is_better=cat["lower_is_better"],
         categories=[schemas.CategoryOut(id=k, label=v["label"], blurb=v["blurb"],
