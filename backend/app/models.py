@@ -171,3 +171,17 @@ class GroupMember(Base):
     group_id: Mapped[str] = mapped_column(String(32), ForeignKey("groups.id"), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), primary_key=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class HiddenService(Base):
+    """Apps this user has hidden from friends.
+
+    Hiding conceals *what* you were on, not how long: the minutes still count
+    toward your totals and your rank, they just arrive as "Hidden" in someone
+    else's breakdown. Otherwise everyone would hide their worst app and the
+    leaderboard would stop meaning anything.
+    """
+
+    __tablename__ = "hidden_services"
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), primary_key=True)
+    service: Mapped[str] = mapped_column(String(32), primary_key=True)

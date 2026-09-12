@@ -100,6 +100,40 @@ class LeaderboardOut(BaseModel):
     rows: list[LeaderboardRow]
 
 
+class ServiceMinutes(BaseModel):
+    service: str
+    label: str
+    category: str | None
+    today: float
+    week: float
+
+
+class BreakdownOut(BaseModel):
+    id: str
+    name: str
+    is_me: bool
+    today_total: float
+    week_total: float
+    hidden_today: float      # minutes the owner has hidden — counted, not named
+    hidden_week: float
+    apps: list[ServiceMinutes]
+
+
+class PrivacyApp(BaseModel):
+    service: str
+    label: str
+    category: str
+    visible: bool
+
+
+class PrivacyOut(BaseModel):
+    apps: list[PrivacyApp]
+
+
+class PrivacyIn(BaseModel):
+    hidden: list[str]
+
+
 class PullOutIn(BaseModel):
     target_id: str
     message: str | None = None

@@ -45,6 +45,13 @@ CATEGORIES: dict[str, dict] = {
     },
 }
 
+# Display names for services the agent's own catalogue doesn't label.
+LABELS = {
+    "github": "GitHub", "notion": "Notion", "slack": "Slack", "gmail": "Gmail",
+    "googledocs": "Google Docs", "figma": "Figma", "spotify": "Spotify",
+    "disneyplus": "Disney+", "twitch": "Twitch", "netflix": "Netflix",
+}
+
 DEFAULT_CATEGORY = "social"
 
 # Windows the leaderboard can cover, as a number of days back from now. "today"

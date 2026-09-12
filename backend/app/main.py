@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 from . import categories as cats
 from .config import settings
 from .db import get_db, init_db, utcnow
-from .models import (ActivityMinute, Friendship, Group, GroupMember, Notification, DecisionLog,
-                     Intervention, PushSubscription, UsageSession, User)
+from .models import (ActivityMinute, Friendship, Group, GroupMember, HiddenService, Notification,
+                     DecisionLog, Intervention, PushSubscription, UsageSession, User)
 from . import schemas
 from .services import label
 from .sessions import effective_minutes
@@ -235,6 +235,89 @@ def leave_group(group_id: str, user: User = Depends(current_user), db: Session =
     return {"ok": True}
 
 
+# ---- per-app breakdown and privacy -----------------------------------------
+
+def _hidden_for(db: Session, user_id: str) -> set[str]:
+    return set(db.scalars(select(HiddenService.service).where(HiddenService.user_id == user_id)))
+
+
+def _minutes_by_service(db: Session, user_id: str, start: datetime,
+                        end: datetime) -> dict[str, float]:
+    rows = db.execute(
+        select(ActivityMinute.service, func.count())
+        .where(ActivityMinute.user_id == user_id,
+               ActivityMinute.minute >= start,
+               ActivityMinute.minute < end)
+        .group_by(ActivityMinute.service)
+    ).all()
+    return {service: float(n) for service, n in rows}
+
+
+@app.get("/people/{user_id}/breakdown", response_model=schemas.BreakdownOut)
+def breakdown(user_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Exactly where someone's time went today and over the last 7 days.
+
+    Apps the person has hidden are folded into `hidden_today` / `hidden_week`
+    rather than dropped, so the totals still reconcile with their rank.
+    """
+    person = db.get(User, user_id)
+    is_me = person is not None and person.id == user.id
+    reachable = person and (is_me or db.get(Friendship, (user.id, person.id))
+                            or _shares_a_group(db, user, person))
+    if not reachable:
+        raise HTTPException(404, "not in any of your groups")
+
+    now = utcnow()
+    today_start, _ = _window_bounds(now, 1)
+    week_start, _ = _window_bounds(now, 7)
+    today = _minutes_by_service(db, person.id, today_start, now)
+    week = _minutes_by_service(db, person.id, week_start, now)
+    hidden = set() if is_me else _hidden_for(db, person.id)
+
+    apps = [
+        schemas.ServiceMinutes(
+            service=svc, label=cats.LABELS.get(svc) or label(svc),
+            category=cats.service_category(svc),
+            today=today.get(svc, 0.0), week=week.get(svc, 0.0),
+        )
+        for svc in sorted(set(today) | set(week), key=lambda s: -week.get(s, 0.0))
+        if svc not in hidden
+    ]
+    return schemas.BreakdownOut(
+        id=person.id, name=person.name, is_me=is_me,
+        today_total=sum(today.values()), week_total=sum(week.values()),
+        hidden_today=sum(v for k, v in today.items() if k in hidden),
+        hidden_week=sum(v for k, v in week.items() if k in hidden),
+        apps=apps,
+    )
+
+
+@app.get("/privacy", response_model=schemas.PrivacyOut)
+def get_privacy(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    hidden = _hidden_for(db, user.id)
+    apps = [
+        schemas.PrivacyApp(service=svc, label=cats.LABELS.get(svc) or label(svc),
+                           category=key, visible=svc not in hidden)
+        for key, meta in cats.CATEGORIES.items() if key != "total"
+        for svc in meta["services"]
+    ]
+    return schemas.PrivacyOut(apps=apps)
+
+
+@app.post("/privacy", response_model=schemas.PrivacyOut)
+def set_privacy(body: schemas.PrivacyIn, user: User = Depends(current_user),
+                db: Session = Depends(get_db)):
+    wanted = {s for s in body.hidden if s in cats.ALL_SERVICES}
+    for row in db.scalars(select(HiddenService).where(HiddenService.user_id == user.id)).all():
+        if row.service not in wanted:
+            db.delete(row)
+    existing = _hidden_for(db, user.id)
+    for svc in wanted - existing:
+        db.add(HiddenService(user_id=user.id, service=svc))
+    db.flush()
+    return get_privacy(user=user, db=db)
+
+
 # ---- leaderboard -----------------------------------------------------------
 
 def _window_bounds(now: datetime, days: int) -> tuple[datetime, datetime]:
@@ -326,10 +409,14 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
     for p in people:
         mins = minutes.get(p.id, 0.0)
         exp = expected.get(p.id, 0.0)
+        top = tops.get(p.id)
+        # The minutes still count; we just don't say which app they were.
+        if top and p.id != user.id and top in _hidden_for(db, p.id):
+            top = None
         rows.append(schemas.LeaderboardRow(
             id=p.id, name=p.name, rank=0, minutes=round(mins, 1),
             ratio=round(mins / exp, 2) if exp > 0 else 0.0,
-            state=_friend_state(db, p).state, top_service=tops.get(p.id),
+            state=_friend_state(db, p).state, top_service=top,
             is_me=(p.id == user.id),
         ))
 

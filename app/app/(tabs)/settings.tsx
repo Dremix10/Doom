@@ -4,9 +4,9 @@
 // board via "Manage groups…" in its title menu, since creating a group mid-demo
 // shouldn't mean hunting through settings.
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, Group } from '../../lib/api';
+import { api, Group, PrivacyApp } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../../lib/theme';
 
@@ -14,6 +14,7 @@ export default function Settings() {
   const { me, refresh, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [privacy, setPrivacy] = useState<PrivacyApp[]>([]);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
@@ -22,6 +23,7 @@ export default function Settings() {
 
   const load = useCallback(async () => {
     try { setGroups(await api.groups()); } catch { /* ignore */ }
+    try { setPrivacy((await api.privacy()).apps); } catch { /* ignore */ }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -57,6 +59,21 @@ export default function Settings() {
       Alert.alert(what, text);
     }
   };
+
+  // Optimistic: flip the switch immediately, then persist the whole hidden set.
+  const toggleApp = async (service: string, visible: boolean) => {
+    const next = privacy.map((a) => (a.service === service ? { ...a, visible } : a));
+    setPrivacy(next);
+    try {
+      const saved = await api.setPrivacy(next.filter((a) => !a.visible).map((a) => a.service));
+      setPrivacy(saved.apps);
+    } catch { setPrivacy(privacy); }
+  };
+
+  const hiddenCount = privacy.filter((a) => !a.visible).length;
+  const byCategory = CATEGORY_ORDER
+    .map((c) => ({ key: c, label: CATEGORY_LABEL[c], apps: privacy.filter((a) => a.category === c) }))
+    .filter((g) => g.apps.length > 0);
 
   const openSetup = () => Linking.openURL(me.setup_url);
   const verify = async () => { setBusy(true); try { await api.personaVerify(); await refresh(); } finally { setBusy(false); } };
@@ -126,6 +143,32 @@ export default function Settings() {
         </Pressable>
       </View>
       {!!msg && <Text style={s.msg}>{msg}</Text>}
+
+      <Text style={s.h2}>What friends can see</Text>
+      <Text style={s.caption}>
+        {hiddenCount === 0
+          ? 'Friends can see which apps your time went to.'
+          : `${hiddenCount} ${hiddenCount === 1 ? 'app is' : 'apps are'} hidden from friends.`}
+        {' '}Hidden apps still count toward your totals and your rank — friends just see
+        the time as "Hidden" instead of the app's name.
+      </Text>
+      {byCategory.map((g) => (
+        <View key={g.key} style={s.card}>
+          <Text style={s.step}>{g.label}</Text>
+          {g.apps.map((a, i) => (
+            <View key={a.service} style={[s.appRow, i > 0 && s.appRowDivided]}>
+              <Text style={s.appName}>{a.label}</Text>
+              <Switch
+                value={a.visible}
+                onValueChange={(v) => toggleApp(a.service, v)}
+                trackColor={{ false: C.line, true: C.accent }}
+                thumbColor="#fff"
+                ios_backgroundColor={C.line}
+              />
+            </View>
+          ))}
+        </View>
+      ))}
 
       <Text style={s.h2}>Your phone</Text>
       <View style={s.card}>
@@ -210,4 +253,17 @@ const s = StyleSheet.create({
   logoutText: { ...T.body, color: C.problem, fontWeight: '600' },
   meta: { ...T.caption, color: C.faint, textAlign: 'center', marginTop: S.xs },
   msg: { ...T.subhead, color: C.drifting, marginTop: S.md },
+  appRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    minHeight: MIN_TAP, gap: S.md,
+  },
+  appRowDivided: { borderTopWidth: HAIRLINE, borderTopColor: C.line },
+  appName: { ...T.body, color: C.text, flex: 1 },
 });
+
+const CATEGORY_ORDER = ['social', 'entertainment', 'productivity'];
+const CATEGORY_LABEL: Record<string, string> = {
+  social: 'Social media',
+  entertainment: 'Entertainment',
+  productivity: 'Productivity',
+};
