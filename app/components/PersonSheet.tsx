@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Breakdown, Decision, LeaderboardRow } from '../lib/api';
 import { ScheduleSheet } from './ScheduleSheet';
+import { Icon } from './Icon';
 import {
   Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, stateColor, stateWord, useColors, useStyles,
 } from '../lib/theme';
@@ -116,8 +117,9 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
                   <Pressable
                     onPress={() => setScheduling(true)}
                     hitSlop={8}
-                    style={({ pressed }) => [s.topBtn, pressed && { opacity: 0.6 }]}
+                    style={({ pressed }) => [s.topBtn, pressed && { opacity: 0.7 }]}
                   >
+                    <Icon name="clock" size={15} color={C.accent} />
                     <Text style={s.topBtnText}>Scheduled</Text>
                   </Pressable>
                 </View>
@@ -275,9 +277,15 @@ const makeStyles = (C: Palette) => StyleSheet.create({
     ...Platform.select({ web: { maxWidth: 560, marginHorizontal: 'auto' as any }, default: {} }),
   },
   grabber: { width: 36, height: 5, borderRadius: R.full, backgroundColor: C.line, alignSelf: 'center', marginBottom: S.md },
-  topBar: { flexDirection: 'row', alignItems: 'center', minHeight: 26, marginBottom: S.xs },
-  topBtn: { justifyContent: 'center' },
-  topBtnText: { ...T.subhead, color: C.accent, fontWeight: '600' },
+  // Right-aligned: iOS puts actions on that side, titles on the left. Tinted so
+  // it reads as a button — as plain text under a 28pt name it went unnoticed.
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: S.xs },
+  topBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: S.xs + 1,
+    backgroundColor: C.accentWash, borderRadius: R.full,
+    paddingLeft: S.md - 2, paddingRight: S.md, paddingVertical: 7,
+  },
+  topBtnText: { ...T.footnote, color: C.accent, fontWeight: '700' },
   name: { ...T.title1, color: C.text },
   stateRow: { flexDirection: 'row', alignItems: 'baseline', gap: S.sm, marginTop: S.xs },
   dot: { width: 9, height: 9, borderRadius: R.full },
