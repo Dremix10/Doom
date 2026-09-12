@@ -25,6 +25,11 @@ import { Wordmark } from '../../components/Wordmark';
 import { C, T, S, R, CONTINUOUS, HAIRLINE } from '../../lib/theme';
 
 const WINDOW_LABEL: Record<string, string> = { today: 'Today', week: 'This week' };
+// The pill has to fit beside a large title, so it gets the short forms.
+const SHORT_CATEGORY: Record<string, string> = {
+  social: 'Social', productivity: 'Productivity',
+  entertainment: 'Entertainment', total: 'Total',
+};
 const ALL = 'all';
 const MANAGE = '__manage';
 
@@ -66,7 +71,8 @@ export default function LeaderboardScreen() {
   const group = board?.groups.find((g) => g.id === board.group_id);
   const isAll = board?.group_id === ALL;
 
-  const sections: MenuSection[] = [
+  // Left menu: who the board is about. Right menu: what it measures and when.
+  const groupSections: MenuSection[] = [
     {
       id: 'group',
       title: 'Group',
@@ -81,6 +87,9 @@ export default function LeaderboardScreen() {
         { id: MANAGE, label: 'Manage groups…', action: true },
       ],
     },
+  ];
+
+  const filterSections: MenuSection[] = [
     {
       id: 'category',
       title: 'Ranking',
@@ -140,20 +149,21 @@ export default function LeaderboardScreen() {
           <View style={{ flexShrink: 1 }}>
             <TitleMenu
               label={isAll ? 'All friends' : group?.name ?? 'Leaderboard'}
-              sections={sections}
+              sections={groupSections}
               onSelect={onSelect}
             />
           </View>
-          {!!board && (
-            <View style={s.chip}>
-              <Text style={s.chipText}>
-                {board.lower_is_better ? '↓ least wins' : '↑ most wins'}
-              </Text>
-            </View>
-          )}
+          <TitleMenu
+            variant="pill"
+            align="right"
+            label={SHORT_CATEGORY[category] ?? current?.label ?? 'Social'}
+            sections={filterSections}
+            onSelect={onSelect}
+          />
         </View>
         <Text style={s.caption}>
-          {current?.label ?? 'Social media'} · {WINDOW_LABEL[period] ?? period}
+          {WINDOW_LABEL[period] ?? period}
+          {current ? ` · ${board?.lower_is_better ? '↓' : '↑'} ${current.blurb}` : ''}
         </Text>
 
         {!board && <ActivityIndicator color={C.accent} style={{ marginTop: S.xxl }} />}
@@ -254,12 +264,7 @@ const s = StyleSheet.create({
     pointerEvents: 'none',   // never swallow taps meant for Add Friend
   },
 
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm + 2 },
-  chip: {
-    backgroundColor: C.accentWash, borderRadius: R.full,
-    paddingHorizontal: S.md - 2, paddingVertical: 5, marginTop: 6,
-  },
-  chipText: { ...T.caption, color: C.accent, fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.sm + 2 },
   caption: { ...T.footnote, color: C.dim, marginTop: S.xs, marginBottom: S.lg },
 
   row: {

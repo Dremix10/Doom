@@ -1,9 +1,14 @@
-// A tappable large title that opens an iOS-style menu, the way Mail switches
-// mailboxes or Health switches charts. Preferred over a corner gear because the
-// title itself shows the current selection without being opened — and because a
-// gear on this screen would collide with the Setup tab's gear.
+// A tappable control that opens an iOS-style menu, the way Mail switches
+// mailboxes or Health switches charts. Two shapes:
+//
+//   variant="title"  the screen's large title (who the board is about)
+//   variant="pill"   a compact button (what's being ranked)
+//
+// Split that way because one menu holding groups + ranking + period ran to 13
+// rows and scrolled, which made flipping a two-option period cost exactly as much
+// as picking a group. Two short menus, each about its own kind of choice.
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
@@ -15,19 +20,22 @@ type Props = {
   label: string;
   sections: MenuSection[];
   onSelect: (sectionId: string, itemId: string) => void;
+  variant?: 'title' | 'pill';
+  /** Which edge the menu hangs from. A pill near the right edge must open
+   *  rightwards or the sheet runs off screen. */
+  align?: 'left' | 'right';
 };
 
-export function TitleMenu({ label, sections, onSelect }: Props) {
+export function TitleMenu({ label, sections, onSelect, variant = 'title', align = 'left' }: Props) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const ref = useRef<View>(null);
   const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState({ x: S.gutter, y: 96 });
+  const [anchor, setAnchor] = useState({ x: S.gutter, y: 96, w: 0 });
 
   const show = () => {
-    // Anchor the sheet under the title. If measurement isn't available yet we
-    // fall back to the gutter, which is where the title sits anyway.
-    ref.current?.measureInWindow?.((x, y, _w, h) => {
-      if (typeof y === 'number') setAnchor({ x: x || S.gutter, y: y + (h || 40) + 6 });
+    ref.current?.measureInWindow?.((x, y, w, h) => {
+      if (typeof y === 'number') setAnchor({ x: x || S.gutter, y: y + (h || 40) + 6, w: w || 0 });
     });
     setOpen(true);
   };
@@ -37,23 +45,27 @@ export function TitleMenu({ label, sections, onSelect }: Props) {
     onSelect(sectionId, itemId);
   };
 
+  const pill = variant === 'pill';
+  const position = align === 'right'
+    ? { right: Math.max(S.gutter, width - (anchor.x + anchor.w)) }
+    : { left: anchor.x };
+
   return (
     <>
-      <Pressable ref={ref} onPress={show} style={({ pressed }) => [s.trigger, pressed && { opacity: 0.6 }]}>
-        <Text style={s.title}>{label}</Text>
-        <View style={s.caret}>
-          <Icon name="chevronDown" size={20} color={C.dim} />
+      <Pressable
+        ref={ref}
+        onPress={show}
+        style={({ pressed }) => [pill ? s.pill : s.trigger, pressed && { opacity: 0.6 }]}
+      >
+        <Text style={pill ? s.pillText : s.title} numberOfLines={1}>{label}</Text>
+        <View style={pill ? undefined : s.caret}>
+          <Icon name="chevronDown" size={pill ? 14 : 20} color={pill ? C.dim : C.dim} />
         </View>
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={s.backdrop} onPress={() => setOpen(false)}>
-          <View
-            style={[s.sheet, {
-              left: anchor.x,
-              top: Math.max(anchor.y, insets.top + S.sm),
-            }]}
-          >
+          <View style={[s.sheet, position, { top: Math.max(anchor.y, insets.top + S.sm) }]}>
             <ScrollView bounces={false}>
               {sections.map((section, i) => (
                 <View key={section.id}>
@@ -88,11 +100,20 @@ export function TitleMenu({ label, sections, onSelect }: Props) {
 
 const s = StyleSheet.create({
   trigger: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: S.sm - 2 },
-  title: { ...T.largeTitle, color: C.text },
+  title: { ...T.largeTitle, color: C.text, flexShrink: 1 },
   caret: { marginTop: 4 },
+
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: S.xs + 1,
+    backgroundColor: C.card, borderRadius: R.full,
+    borderWidth: HAIRLINE, borderColor: C.line,
+    paddingLeft: S.md, paddingRight: S.sm + 2, paddingVertical: 7,
+  },
+  pillText: { ...T.footnote, color: C.text, fontWeight: '600' },
+
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
-    position: 'absolute', minWidth: 258, maxWidth: 320, maxHeight: 440,
+    position: 'absolute', minWidth: 232, maxWidth: 320, maxHeight: 440,
     backgroundColor: C.card2, borderRadius: R.lg, ...CONTINUOUS,
     borderWidth: HAIRLINE, borderColor: C.line, paddingVertical: S.xs + 2,
     boxShadow: '0 12px 24px rgba(0,0,0,0.45)',
