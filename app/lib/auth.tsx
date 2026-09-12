@@ -25,7 +25,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try { setMe(await api.me()); } catch { setToken(null); setMe(null); }
   }, []);
 
-  useEffect(() => { (async () => { await refresh(); setLoading(false); })(); }, [refresh]);
+  // Dev/demo convenience: ?token=XXX in the URL logs you straight in (web only),
+  // so you can open a link per seeded user. The param is stripped after reading.
+  useEffect(() => {
+    (async () => {
+      try {
+        if (typeof window !== 'undefined' && window.location?.search) {
+          const t = new URLSearchParams(window.location.search).get('token');
+          if (t) {
+            setToken(t);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('token');
+            window.history.replaceState({}, '', url.toString());
+          }
+        }
+      } catch { /* ignore */ }
+      await refresh();
+      setLoading(false);
+    })();
+  }, [refresh]);
 
   // Heartbeat every 30s so availability-based friend selection works.
   useEffect(() => {
