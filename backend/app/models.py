@@ -71,6 +71,7 @@ class UsageSession(Base):
     last_active_at: Mapped[datetime] = mapped_column(DateTime)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     minutes: Mapped[float] = mapped_column(Float, default=1.0)  # wall-clock minutes, not scaled
+    source: Mapped[str] = mapped_column(String(16), default="sensor")  # sensor | shortcut
     state: Mapped[str] = mapped_column(String(16), default="fine")  # fine | drifting | problem
     problem_score: Mapped[float] = mapped_column(Float, default=0.0)
     nudges: Mapped[int] = mapped_column(Integer, default=0)

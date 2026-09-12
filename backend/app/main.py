@@ -28,6 +28,7 @@ from .services import label
 from .sessions import effective_minutes
 from .sensor.poller import run_poller
 from .sensor.profile import build_mobileconfig, setup_page, doh_url_for
+from .sensor import shortcuts as shortcuts_mod
 from .agent.loop import run_agent
 from .agent import friends as friends_mod
 
@@ -87,6 +88,7 @@ def _user_out(user: User) -> schemas.UserOut:
         id=user.id, name=user.name, client_id=user.client_id, invite_code=user.invite_code,
         token=user.token, persona_verified=user.persona_verified,
         setup_url=f"{settings.PUBLIC_API_URL}/setup/{user.token}", doh_url=doh_url_for(user),
+        shortcuts_url=f"{settings.PUBLIC_API_URL}/shortcuts/{user.token}",
     )
 
 
@@ -253,3 +255,35 @@ def push_subscribe(body: schemas.PushSubIn, user: User = Depends(current_user), 
 @app.post("/heartbeat")
 def heartbeat(user: User = Depends(current_user)) -> dict:
     return {"ok": True, "seen": utcnow().isoformat()}
+
+
+# ---- Shortcuts ingestion (real iOS usage, no profile/account) ---------------
+
+@app.get("/shortcuts/{token}", response_class=HTMLResponse)
+def shortcuts_setup(token: str, db: Session = Depends(get_db)) -> str:
+    user = db.scalar(select(User).where(User.token == token))
+    if not user:
+        raise HTTPException(404, "unknown setup link")
+    return shortcuts_mod.setup_page(user, settings.PUBLIC_API_URL, settings.APP_NAME)
+
+
+@app.api_route("/s/{token}/{app_name}/{event}", methods=["GET", "POST"])
+def shortcut_event(token: str, app_name: str, event: str, db: Session = Depends(get_db)) -> dict:
+    """Called by an iOS Shortcuts automation on app open/close. Kept dead simple
+    (path-only, no body/headers) so the Shortcut is just 'Get Contents of URL'."""
+    user = db.scalar(select(User).where(User.token == token))
+    if not user:
+        raise HTTPException(404, "unknown link")
+    user.last_seen_at = utcnow()
+    service = shortcuts_mod.normalize_service(app_name)
+    if not service:
+        raise HTTPException(400, f"unknown app '{app_name}'")
+    ev = event.strip().lower()
+    if ev in ("open", "opened", "start"):
+        s = shortcuts_mod.open_shortcut_session(db, user, service)
+        return {"ok": True, "event": "open", "service": service, "session": s.id}
+    if ev in ("close", "closed", "stop", "end"):
+        s = shortcuts_mod.close_shortcut_session(db, user, service)
+        return {"ok": True, "event": "close", "service": service,
+                "minutes": round(s.minutes, 1) if s else 0, "closed": bool(s)}
+    raise HTTPException(400, f"unknown event '{event}' (use open or close)")

@@ -21,7 +21,7 @@ async function req<T>(path: string, opts: RequestInit = {}, auth = true): Promis
 
 export type Me = {
   id: string; name: string; client_id: string; invite_code: string; token: string;
-  persona_verified: boolean; setup_url: string; doh_url: string;
+  persona_verified: boolean; setup_url: string; doh_url: string; shortcuts_url: string;
 };
 export type FriendState = {
   id: string; name: string; state: string; service: string | null;

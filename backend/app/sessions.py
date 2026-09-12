@@ -46,8 +46,11 @@ def refresh_sessions(db: Session, now: datetime | None = None) -> None:
     now = now or utcnow()
     gap = timedelta(minutes=settings.SESSION_GAP_MIN)
 
-    # Close sessions that went quiet.
+    # Close sessions that went quiet. Shortcut sessions are closed only by their
+    # explicit "close" event (real app-switch), never by the activity-gap timer.
     for s in open_sessions(db):
+        if s.source == "shortcut":
+            continue
         if now - s.last_active_at > gap:
             s.ended_at = s.last_active_at + timedelta(minutes=1)
             s.minutes = _minutes(s.started_at, s.last_active_at)

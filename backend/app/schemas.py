@@ -18,6 +18,7 @@ class UserOut(BaseModel):
     persona_verified: bool
     setup_url: str
     doh_url: str
+    shortcuts_url: str
 
 
 class FriendState(BaseModel):

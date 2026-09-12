@@ -34,6 +34,17 @@ export default function Setup() {
       </View>
 
       <View style={s.card}>
+        <Text style={s.step}>1b · Or set up with Shortcuts</Text>
+        <Text style={s.body}>
+          No profile, works on any iPhone. You add two quick Shortcuts automations per app
+          (opened / closed) that report real usage. Each friend does this on their own phone.
+        </Text>
+        <Pressable style={[s.btn, { backgroundColor: C.card2 }]} onPress={() => Linking.openURL(me.shortcuts_url)}>
+          <Text style={s.btnText}>Open Shortcuts setup</Text>
+        </Pressable>
+      </View>
+
+      <View style={s.card}>
         <Text style={s.step}>2 · Add friends</Text>
         <Text style={s.body}>Share your invite code. They enter it in their Friends tab.</Text>
         <Pressable onPress={() => copy(me.invite_code, 'Invite code')}>
