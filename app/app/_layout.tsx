@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { ThemeProvider, useColors, useTheme } from '../lib/theme';
+import NudgeVoice from '../components/NudgeVoice';
 
 // Auth gating lives here so it holds for every route, not just "/". Without it,
 // signing out from Settings left you on a blank screen: the token was cleared but
@@ -36,6 +37,7 @@ function Themed() {
   return (
     <AuthProvider>
       <StatusBar style={colors.barStyle} />
+      <NudgeVoice />
       <Gate />
     </AuthProvider>
   );
