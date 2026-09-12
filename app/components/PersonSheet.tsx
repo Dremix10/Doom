@@ -1,18 +1,27 @@
-// Tap a row on the board to get here. Everyone's sheet shows exactly where their
-// time went — per app, today and over the last week. Your own adds the agent's
-// decision log; anyone else's adds a message box and the Pull out button, which
-// is where you'd want it: you pull someone out because you just saw them last.
+// Tap a row on the board to get here. Everyone's sheet shows where their time
+// went — per app, today and over the last week. Your own adds the agent's
+// decision log; anyone else's gets a compose bar.
+//
+// The compose bar is pinned rather than sitting at the end of the content: the
+// breakdown runs to sixteen apps, which put the message box a whole sheet-height
+// below the fold, and you almost always open a friend's sheet to say something
+// rather than to browse. The list is also trimmed to the apps that matter, with
+// the tail behind a "show all" — sixteen rows of one-minute entries isn't insight.
 //
 // Apps a person has hidden arrive as a single "Hidden" row. The minutes are still
 // in their total and their rank — only the app name is withheld.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text,
-  TextInput, useWindowDimensions, View,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView,
+  StyleSheet, Text, TextInput, useWindowDimensions, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Breakdown, Decision, LeaderboardRow } from '../lib/api';
-import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, stateColor, stateWord, useColors, useStyles } from '../lib/theme';
+import {
+  Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, stateColor, stateWord, useColors, useStyles,
+} from '../lib/theme';
+
+const TOP_APPS = 5;
 
 const actionMeta = (C: Palette): Record<string, { label: string; color: string }> => ({
   quiet: { label: 'stayed quiet', color: C.faint },
@@ -48,6 +57,7 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
   const [note, setNote] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const isMe = !!row?.is_me;
   const personId = row?.id;
@@ -61,7 +71,7 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
   }, [personId, isMe]);
 
   useEffect(() => {
-    setMsg(''); setNote(''); setTimeline(null); setDetail(null);
+    setMsg(''); setNote(''); setTimeline(null); setDetail(null); setShowAll(false);
     if (row) loadDetail();
   }, [row, loadDetail]);
 
@@ -80,114 +90,132 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
     }
   };
 
-  // Bars are scaled to the biggest week figure so the rows compare against each other.
-  const peak = Math.max(1, ...(detail?.apps ?? []).map((a) => a.week), detail?.hidden_week ?? 0);
-  const topLabel = detail?.apps?.[0]?.label;
+  const used = useMemo(
+    () => (detail?.apps ?? []).filter((a) => a.week > 0 || a.today > 0),
+    [detail],
+  );
+  const visible = showAll ? used : used.slice(0, TOP_APPS);
+  const peak = Math.max(1, ...used.map((a) => a.week), detail?.hidden_week ?? 0);
+  const topLabel = used[0]?.label;
 
   return (
     <Modal visible={!!row} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose} />
-      <View style={[s.sheet, { paddingBottom: insets.bottom + S.xl }]}>
-        <View style={s.grabber} />
-        {row && (
-          <ScrollView style={{ maxHeight: height * 0.68 }} contentContainerStyle={{ paddingBottom: S.md }}>
-            <Text style={s.name}>{isMe ? 'You' : row.name}</Text>
-            <View style={s.stateRow}>
-              <View style={[s.dot, { backgroundColor: stateColor(C, row.state) }]} />
-              <Text style={[s.state, { color: stateColor(C, row.state) }]}>{stateWord(row.state)}</Text>
-            </View>
+      <KeyboardAvoidingView
+        style={s.dock}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={[s.sheet, { paddingBottom: insets.bottom + S.md }]}>
+          <View style={s.grabber} />
+          {row && (
+            <>
+              <Text style={s.name}>{isMe ? 'You' : row.name}</Text>
+              <View style={s.stateRow}>
+                <View style={[s.dot, { backgroundColor: stateColor(C, row.state) }]} />
+                <Text style={[s.state, { color: stateColor(C, row.state) }]}>{stateWord(row.state)}</Text>
+                <Text style={s.summary} numberOfLines={1}>
+                  · {duration(row.minutes)}
+                  {row.ratio > 0 ? ` · ${row.ratio.toFixed(1)}× usual` : ''} · #{row.rank}
+                </Text>
+              </View>
 
-            <View style={s.stats}>
-              <Stat label="this period" value={duration(row.minutes)} />
-              <Stat label="vs usual" value={row.ratio > 0 ? `${row.ratio.toFixed(1)}×` : '—'} />
-              <Stat label="rank" value={`#${row.rank}`} />
-            </View>
-
-            <View style={s.h2Row}>
-              <Text style={s.h2}>Where the time went</Text>
-              <Text style={s.h2Cols}>today · week</Text>
-            </View>
-            {!detail && <ActivityIndicator color={C.accent} style={{ marginTop: S.md }} />}
-            {detail && (
-              <>
-                {detail.apps.filter((a) => a.week > 0 || a.today > 0).map((a) => (
-                  <AppRow key={a.service} label={a.label} today={a.today} week={a.week} peak={peak} />
-                ))}
-                {detail.hidden_week > 0 && (
-                  <AppRow
-                    label="Hidden"
-                    today={detail.hidden_today}
-                    week={detail.hidden_week}
-                    peak={peak}
-                    muted
-                  />
-                )}
-                {detail.apps.length === 0 && detail.hidden_week === 0 && (
-                  <Text style={s.empty}>No activity recorded this week.</Text>
-                )}
-                <View style={s.totals}>
-                  <Text style={s.totalsText}>
-                    {duration(detail.today_total)} today · {duration(detail.week_total)} this week
-                  </Text>
+              <ScrollView
+                style={{ maxHeight: height * (isMe ? 0.56 : 0.44) }}
+                contentContainerStyle={{ paddingBottom: S.md }}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={s.h2Row}>
+                  <Text style={s.h2}>Where the time went</Text>
+                  <Text style={s.h2Cols}>today · week</Text>
                 </View>
-              </>
-            )}
-
-            {isMe ? (
-              <>
-                <Text style={s.h2}>What the agent has been doing</Text>
-                {timeline === null && <ActivityIndicator color={C.accent} style={{ marginTop: S.md }} />}
-                {timeline?.length === 0 && (
-                  <Text style={s.empty}>No decisions yet. Open a feed app and watch this fill in.</Text>
-                )}
-                {timeline?.slice(0, 12).map((d) => {
-                  const meta = actionMeta(C);
-                  const m = meta[d.action] || meta.quiet;
-                  return (
-                    <View key={d.id} style={s.logRow}>
-                      <View style={[s.logDot, { backgroundColor: m.color }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.logAction}>
-                          <Text style={{ color: m.color, fontWeight: '600' }}>{m.label}</Text>
-                          {d.service ? <Text style={s.logSvc}>  · {d.service}</Text> : null}
-                          {d.source === 'gemini' ? <Text style={s.gemini}>  · Gemini</Text> : null}
+                {!detail && <ActivityIndicator color={C.accent} style={{ marginTop: S.md }} />}
+                {detail && (
+                  <>
+                    {visible.map((a) => (
+                      <AppRow key={a.service} label={a.label} today={a.today} week={a.week} peak={peak} />
+                    ))}
+                    {detail.hidden_week > 0 && (
+                      <AppRow label="Hidden" today={detail.hidden_today} week={detail.hidden_week} peak={peak} muted />
+                    )}
+                    {used.length > TOP_APPS && (
+                      <Pressable
+                        onPress={() => setShowAll((v) => !v)}
+                        style={({ pressed }) => [s.moreRow, pressed && { opacity: 0.6 }]}
+                      >
+                        <Text style={s.moreText}>
+                          {showAll ? 'Show less' : `Show all ${used.length} apps`}
                         </Text>
-                        <Text style={s.logWhy}>{d.justification}</Text>
-                        <Text style={s.logAgo}>{ago(d.created_at)}</Text>
-                      </View>
+                      </Pressable>
+                    )}
+                    {used.length === 0 && detail.hidden_week === 0 && (
+                      <Text style={s.empty}>No activity recorded this week.</Text>
+                    )}
+                    <View style={s.totals}>
+                      <Text style={s.totalsText}>
+                        {duration(detail.today_total)} today · {duration(detail.week_total)} this week
+                      </Text>
                     </View>
-                  );
-                })}
-              </>
-            ) : (
-              <>
-                <Text style={s.h2}>Say something</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder={topLabel ? `Broo stop watching ${topLabel}` : 'Put the phone down'}
-                  placeholderTextColor={C.faint}
-                  value={note}
-                  onChangeText={setNote}
-                  maxLength={140}
-                  multiline
-                  onSubmitEditing={pull}
-                  returnKeyType="send"
-                />
-                <Text style={s.hint}>Leave it blank and we'll send the usual nudge.</Text>
-                <Pressable
-                  style={({ pressed }) => [s.pull, busy && { opacity: 0.5 }, pressed && { opacity: 0.75 }]}
-                  onPress={pull}
-                  disabled={busy}
-                >
-                  <Text style={s.pullText}>Pull {row.name} out</Text>
-                </Pressable>
-              </>
-            )}
+                  </>
+                )}
 
-            {!!msg && <Text style={s.msg}>{msg}</Text>}
-          </ScrollView>
-        )}
-      </View>
+                {isMe && (
+                  <>
+                    <Text style={s.h2}>What the agent has been doing</Text>
+                    {timeline === null && <ActivityIndicator color={C.accent} style={{ marginTop: S.md }} />}
+                    {timeline?.length === 0 && (
+                      <Text style={s.empty}>No decisions yet. Open a feed app and watch this fill in.</Text>
+                    )}
+                    {timeline?.slice(0, 12).map((d) => {
+                      const meta = actionMeta(C);
+                      const m = meta[d.action] || meta.quiet;
+                      return (
+                        <View key={d.id} style={s.logRow}>
+                          <View style={[s.logDot, { backgroundColor: m.color }]} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.logAction}>
+                              <Text style={{ color: m.color, fontWeight: '600' }}>{m.label}</Text>
+                              {d.service ? <Text style={s.logSvc}>  · {d.service}</Text> : null}
+                              {d.source === 'gemini' ? <Text style={s.gemini}>  · Gemini</Text> : null}
+                              {d.source === 'claude' ? <Text style={s.gemini}>  · Claude</Text> : null}
+                            </Text>
+                            <Text style={s.logWhy}>{d.justification}</Text>
+                            <Text style={s.logAgo}>{ago(d.created_at)}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </>
+                )}
+              </ScrollView>
+
+              {!!msg && <Text style={s.msg}>{msg}</Text>}
+
+              {/* Pinned: the reason you opened this sheet shouldn't be below the fold. */}
+              {!isMe && (
+                <View style={s.compose}>
+                  <TextInput
+                    style={s.input}
+                    placeholder={topLabel ? `Broo stop watching ${topLabel}` : 'Put the phone down'}
+                    placeholderTextColor={C.faint}
+                    value={note}
+                    onChangeText={setNote}
+                    maxLength={140}
+                    onSubmitEditing={pull}
+                    returnKeyType="send"
+                  />
+                  <Pressable
+                    style={({ pressed }) => [s.pull, busy && { opacity: 0.5 }, pressed && { opacity: 0.75 }]}
+                    onPress={pull}
+                    disabled={busy}
+                  >
+                    <Text style={s.pullText}>Pull out</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -214,20 +242,10 @@ function AppRow({ label, today, week, peak, muted }: {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  const s = useStyles(makeStyles);
-  return (
-    <View style={s.stat}>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const makeStyles = (C: Palette) => StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
+  dock: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   sheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, ...CONTINUOUS,
     paddingHorizontal: S.gutter, paddingTop: S.sm,
     borderTopWidth: HAIRLINE, borderColor: C.line,
@@ -235,20 +253,14 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   },
   grabber: { width: 36, height: 5, borderRadius: R.full, backgroundColor: C.line, alignSelf: 'center', marginBottom: S.md },
   name: { ...T.title1, color: C.text },
-  stateRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.xs },
+  stateRow: { flexDirection: 'row', alignItems: 'baseline', gap: S.sm, marginTop: S.xs },
   dot: { width: 9, height: 9, borderRadius: R.full },
   state: { ...T.subhead, fontWeight: '600' },
-  stats: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
-  stat: {
-    flex: 1, backgroundColor: C.card2, borderRadius: R.md, ...CONTINUOUS,
-    paddingVertical: S.md, alignItems: 'center',
-  },
-  statValue: { ...T.title3, color: C.text, fontWeight: '600' },
-  statLabel: { ...T.caption, color: C.faint, marginTop: 2 },
+  summary: { ...T.subhead, color: C.dim, flexShrink: 1 },
   h2Row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   h2: {
     ...T.footnote, fontWeight: '600', color: C.dim, textTransform: 'uppercase',
-    letterSpacing: 0.6, marginTop: S.xl, marginBottom: S.sm,
+    letterSpacing: 0.6, marginTop: S.lg, marginBottom: S.sm,
   },
   h2Cols: { ...T.caption, color: C.faint, marginBottom: S.sm },
   appRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.sm },
@@ -257,17 +269,11 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   bar: { height: 5, borderRadius: R.full, backgroundColor: C.accent },
   appToday: { ...T.subhead, color: C.text, width: 54, textAlign: 'right' },
   appWeek: { ...T.subhead, color: C.dim, width: 58, textAlign: 'right' },
-  totals: {
-    marginTop: S.md, paddingTop: S.md, borderTopWidth: HAIRLINE, borderTopColor: C.line,
-  },
+  moreRow: { minHeight: MIN_TAP - 8, justifyContent: 'center' },
+  moreText: { ...T.subhead, color: C.accent, fontWeight: '600' },
+  totals: { marginTop: S.sm, paddingTop: S.sm, borderTopWidth: HAIRLINE, borderTopColor: C.line },
   totalsText: { ...T.footnote, color: C.faint, textAlign: 'right' },
   empty: { ...T.subhead, color: C.faint },
-  input: {
-    backgroundColor: C.card2, color: C.text, borderRadius: R.md, ...CONTINUOUS,
-    paddingHorizontal: S.md + 2, paddingTop: S.md, paddingBottom: S.md, minHeight: MIN_TAP + 16,
-    borderWidth: HAIRLINE, borderColor: C.line, ...T.body,
-  },
-  hint: { ...T.caption, color: C.faint, marginTop: S.sm },
   logRow: {
     flexDirection: 'row', gap: S.md, paddingVertical: S.md - 2,
     borderBottomWidth: HAIRLINE, borderBottomColor: C.line,
@@ -278,10 +284,20 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   gemini: { ...T.footnote, color: C.accent },
   logWhy: { ...T.subhead, color: C.dim, marginTop: 2 },
   logAgo: { ...T.caption, color: C.faint, marginTop: 3 },
-  pull: {
-    backgroundColor: C.problem, borderRadius: R.md, ...CONTINUOUS, minHeight: MIN_TAP + 4,
-    alignItems: 'center', justifyContent: 'center', marginTop: S.md,
+  msg: { ...T.footnote, color: C.drifting, marginTop: S.sm, textAlign: 'center' },
+  compose: {
+    flexDirection: 'row', alignItems: 'center', gap: S.sm,
+    marginTop: S.md, paddingTop: S.md,
+    borderTopWidth: HAIRLINE, borderTopColor: C.line,
   },
-  pullText: { ...T.headline, color: '#fff' },
-  msg: { ...T.subhead, color: C.drifting, marginTop: S.md, textAlign: 'center' },
+  input: {
+    flex: 1, backgroundColor: C.card2, color: C.text, borderRadius: R.full,
+    paddingHorizontal: S.lg, minHeight: MIN_TAP, borderWidth: HAIRLINE, borderColor: C.line,
+    ...T.subhead,
+  },
+  pull: {
+    backgroundColor: C.problem, borderRadius: R.full,
+    paddingHorizontal: S.lg, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center',
+  },
+  pullText: { ...T.subhead, color: '#fff', fontWeight: '700' },
 });
