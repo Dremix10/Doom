@@ -31,6 +31,18 @@ export type Group = {
   id: string; name: string; join_code: string; member_count: number;
   members: string[]; is_owner: boolean;
 };
+export type ServiceMinutes = {
+  service: string; label: string; category: string | null; today: number; week: number;
+};
+export type Breakdown = {
+  id: string; name: string; is_me: boolean;
+  today_total: number; week_total: number;
+  hidden_today: number; hidden_week: number;
+  apps: ServiceMinutes[];
+};
+export type PrivacyApp = { service: string; label: string; category: string; visible: boolean };
+export type Privacy = { apps: PrivacyApp[] };
+
 export type LeaderboardRow = {
   id: string; name: string; rank: number; minutes: number; ratio: number;
   state: string; top_service: string | null; is_me: boolean;
@@ -66,6 +78,10 @@ export const api = {
     req<FriendState>('/friends/add', { method: 'POST', body: JSON.stringify({ invite_code }) }),
   pullOut: (target_id: string, message?: string) =>
     req<Note>('/friends/pull-out', { method: 'POST', body: JSON.stringify({ target_id, message }) }),
+  breakdown: (userId: string) => req<Breakdown>(`/people/${userId}/breakdown`),
+  privacy: () => req<Privacy>('/privacy'),
+  setPrivacy: (hidden: string[]) =>
+    req<Privacy>('/privacy', { method: 'POST', body: JSON.stringify({ hidden }) }),
   groups: () => req<Group[]>('/groups'),
   createGroup: (name: string) =>
     req<Group>('/groups', { method: 'POST', body: JSON.stringify({ name }) }),
