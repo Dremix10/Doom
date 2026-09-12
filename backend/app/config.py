@@ -49,6 +49,9 @@ class Settings:
     # Agent
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    # Claude (Anthropic) — the team's chosen agent brain; overrides Gemini when set.
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-opus-5")
     AGENT_INTERVAL_S: float = _float(os.getenv("AGENT_INTERVAL_S"), 30.0)
     SESSION_GAP_MIN: float = _float(os.getenv("SESSION_GAP_MIN"), 2.0)
     DEMO_MODE: bool = _bool(os.getenv("DEMO_MODE"), False)
