@@ -21,7 +21,7 @@ app:  ## run the Expo app (web + phone via Expo Go)
 	cd app && npx expo start
 
 export:  ## build the web PWA into app/dist
-	cd app && npx expo export --platform web
+	cd app && npx expo export --platform web && python3 scripts/pwa-inject.py
 
 clean:
 	rm -f backend/data/app.db backend/data/app.db-*
