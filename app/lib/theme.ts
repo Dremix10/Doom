@@ -16,6 +16,13 @@ export const C = {
   accent: '#ff5a2b',    // the clock wedge
   accentDim: '#7a3420',
   accentWash: 'rgba(255,90,43,0.13)',  // tint behind your own row
+  problemWash: 'rgba(255,59,92,0.10)', // behind whoever is doomscrolling right now
+  // Medals. Deliberately pulled away from the state colours: a bright gold would
+  // read as `drifting`, a bright bronze as the brand accent. All three are light
+  // enough to take dark text, so the number inside stays legible.
+  gold: '#d9a227',
+  silver: '#c4c8d0',
+  bronze: '#c77b4a',
   onAccent: '#140f0d',  // text on accent: 5.7:1, where white would be 3.1:1
   fine: '#3ecf8e',
   drifting: '#ffc53d',  // pushed to yellow, clear of the brand orange

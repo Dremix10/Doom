@@ -3,7 +3,16 @@
 //
 // Rank 1 is always the position you want to be in — least time for social,
 // entertainment and total, most time for productivity — so the sort direction
-// comes from the category (`lower_is_better`) rather than being fixed here.
+// comes from the category (`lower_is_better`) rather than being fixed here, and
+// the chip beside the title says which way it's running.
+//
+// Whoever is doomscrolling right now stays in their own rank rather than being
+// pinned to the top — pinning showed them twice and broke reading the table
+// straight down. Their row turns crimson and grows a Pull out button instead, so
+// the action is where the person is.
+//
+// Crimson means exactly one thing on this screen: someone is scrolling now. It is
+// deliberately not used for last place, or an idle row would look actionable.
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,12 +22,17 @@ import { MenuSection, TitleMenu } from '../../components/TitleMenu';
 import { PersonSheet } from '../../components/PersonSheet';
 import { AddFriendSheet } from '../../components/AddFriendSheet';
 import { Wordmark } from '../../components/Wordmark';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, stateColor } from '../../lib/theme';
+import { C, T, S, R, CONTINUOUS, HAIRLINE } from '../../lib/theme';
 
 const WINDOW_LABEL: Record<string, string> = { today: 'Today', week: 'This week' };
-// Sentinel ids the group section uses alongside real group ids.
 const ALL = 'all';
 const MANAGE = '__manage';
+
+// A ratio is only worth showing when it's actually unusual — "1.0× usual" on
+// every row is noise that makes the badge meaningless when it matters.
+const HIGH = 1.3;
+const LOW = 0.6;
+const notable = (ratio: number) => ratio > 0 && (ratio >= HIGH || ratio <= LOW);
 
 function duration(mins: number): string {
   const m = Math.round(mins);
@@ -42,8 +56,6 @@ export default function LeaderboardScreen() {
     try {
       const b = await api.leaderboard(groupId, category, period);
       setBoard(b);
-      // The API picks a default group when we haven't chosen one; adopt it so the
-      // menu shows a checkmark against the group we're actually looking at.
       if (!groupId && b.group_id) setGroupId(b.group_id);
     } catch { /* ignore transient */ }
   }, [groupId, category, period]);
@@ -52,6 +64,7 @@ export default function LeaderboardScreen() {
 
   const current = board?.categories.find((c) => c.id === board.category);
   const group = board?.groups.find((g) => g.id === board.group_id);
+  const isAll = board?.group_id === ALL;
 
   const sections: MenuSection[] = [
     {
@@ -59,17 +72,15 @@ export default function LeaderboardScreen() {
       title: 'Group',
       selected: board?.group_id ?? ALL,
       items: [
-        { id: ALL, label: 'All friends', detail: 'everyone you\u2019ve added' },
+        { id: ALL, label: 'All friends', detail: 'everyone you’ve added' },
         ...(board?.groups ?? []).map((g) => ({
           id: g.id,
           label: g.name,
           detail: `${g.member_count} ${g.member_count === 1 ? 'member' : 'members'}`,
         })),
-        { id: MANAGE, label: 'Manage groups\u2026', action: true },
+        { id: MANAGE, label: 'Manage groups…', action: true },
       ],
     },
-  ];
-  sections.push(
     {
       id: 'category',
       title: 'Ranking',
@@ -82,17 +93,18 @@ export default function LeaderboardScreen() {
       selected: period,
       items: (board?.windows ?? []).map((w) => ({ id: w, label: WINDOW_LABEL[w] ?? w })),
     },
-  );
+  ];
 
   const onSelect = (sectionId: string, itemId: string) => {
-    if (itemId === MANAGE) { router.push('/settings'); return; }
+    if (itemId === MANAGE) { router.push('/settings/groups'); return; }
     if (sectionId === 'group') setGroupId(itemId);
     else if (sectionId === 'category') setCategory(itemId);
     else setPeriod(itemId);
-    setBoard(null); // don't show the old ranking under the new title
+    setBoard(null);
   };
 
   const rows = board?.rows ?? [];
+  const peak = Math.max(1, ...rows.map((r) => r.minutes));
 
   return (
     <>
@@ -119,47 +131,92 @@ export default function LeaderboardScreen() {
           >
             <Text style={s.navBtnText}>Add Friend</Text>
           </Pressable>
-          {/* Absolutely positioned so the wordmark is centred on the screen, not
-              on whatever space the button leaves — the iOS nav-bar convention. */}
-          <View style={s.navTitle} pointerEvents="none">
+          <View style={s.navTitle}>
             <Wordmark size={19} />
           </View>
         </View>
-        <TitleMenu
-          label={board?.group_id === ALL ? 'All friends' : group?.name ?? 'Leaderboard'}
-          sections={sections}
-          onSelect={onSelect}
-        />
+
+        <View style={s.titleRow}>
+          <View style={{ flexShrink: 1 }}>
+            <TitleMenu
+              label={isAll ? 'All friends' : group?.name ?? 'Leaderboard'}
+              sections={sections}
+              onSelect={onSelect}
+            />
+          </View>
+          {!!board && (
+            <View style={s.chip}>
+              <Text style={s.chipText}>
+                {board.lower_is_better ? '↓ least wins' : '↑ most wins'}
+              </Text>
+            </View>
+          )}
+        </View>
         <Text style={s.caption}>
           {current?.label ?? 'Social media'} · {WINDOW_LABEL[period] ?? period}
-          {current ? ` · ${current.blurb}` : ''}
         </Text>
 
         {!board && <ActivityIndicator color={C.accent} style={{ marginTop: S.xxl }} />}
 
-        {board && rows.map((r) => (
-          <Pressable
-            key={r.id}
-            onPress={() => setSelected(r)}
-            style={({ pressed }) => [s.row, r.is_me && s.rowMe, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={[s.rank, r.rank === 1 && { color: C.accent }]}>{r.rank}</Text>
-            <View style={[s.dot, { backgroundColor: stateColor(r.state) }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.name} numberOfLines={1}>{r.is_me ? 'You' : r.name}</Text>
-              <Text style={s.sub} numberOfLines={1}>
-                {r.top_service ?? 'nothing yet'}
-                {r.ratio > 0 ? ` · ${r.ratio.toFixed(1)}× usual` : ''}
-              </Text>
-            </View>
-            <Text style={s.minutes}>{duration(r.minutes)}</Text>
-          </Pressable>
-        ))}
+        {rows.map((r) => {
+          const live = r.state === 'problem';
+          const drifting = r.state === 'drifting';
+          return (
+            <Pressable
+              key={r.id}
+              onPress={() => setSelected(r)}
+              style={({ pressed }) => [
+                s.row,
+                live && s.rowLive,
+                r.is_me && s.rowMe,
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <RankBadge rank={r.rank} />
+              <View style={{ flex: 1 }}>
+                <View style={s.nameRow}>
+                  <Text style={s.name} numberOfLines={1}>{r.is_me ? 'You' : r.name}</Text>
+                  {drifting && <Text style={[s.tag, { color: C.drifting }]}>drifting</Text>}
+                </View>
+                <View style={s.track}>
+                  <View
+                    style={[
+                      s.bar,
+                      { width: `${Math.max(2, Math.round((r.minutes / peak) * 100))}%` },
+                      live && { backgroundColor: C.problem },
+                      drifting && { backgroundColor: C.drifting },
+                    ]}
+                  />
+                </View>
+                {live && (
+                  <View style={s.liveRow}>
+                    <Text style={s.liveText} numberOfLines={1}>
+                      {r.top_service ? `on ${r.top_service} now` : 'scrolling now'}
+                      {notable(r.ratio) ? ` · ${r.ratio.toFixed(1)}× usual` : ''}
+                    </Text>
+                    {!r.is_me && (
+                      <Pressable
+                        onPress={() => setSelected(r)}
+                        style={({ pressed }) => [s.pull, pressed && { opacity: 0.75 }]}
+                      >
+                        <Text style={s.pullText}>Pull out</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </View>
+              <View style={s.rowRight}>
+                <Text style={s.minutes}>{duration(r.minutes)}</Text>
+                {notable(r.ratio) && <Text style={s.ratio}>{r.ratio.toFixed(1)}×</Text>}
+              </View>
+            </Pressable>
+          );
+        })}
 
         {board && rows.length <= 1 && (
           <Text style={s.empty}>
-            {board.group_id === ALL
-              ? "No friends yet. Tap Add Friend and share your code or link."
+            {isAll
+              ? 'No friends yet. Tap Add Friend and share your code or link.'
               : 'Nobody else in this group yet. Share its join code from Settings.'}
           </Text>
         )}
@@ -171,29 +228,78 @@ export default function LeaderboardScreen() {
   );
 }
 
+// Medals for the top three, as filled badges rather than coloured numerals: a
+// gold numeral would read as the `drifting` state and a bronze one as the accent,
+// but nothing else on this screen is a filled circle.
+const MEDAL: Record<number, string> = { 1: C.gold, 2: C.silver, 3: C.bronze };
+
+function RankBadge({ rank }: { rank: number }) {
+  const medal = MEDAL[rank];
+  if (!medal) return <Text style={s.rank}>{rank}</Text>;
+  return (
+    <View style={[s.medal, { backgroundColor: medal }]}>
+      <Text style={s.medalText}>{rank}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   navBar: { flexDirection: 'row', alignItems: 'center', minHeight: 38, marginBottom: S.xs },
+  navBtn: { justifyContent: 'center' },
+  navBtnText: { ...T.body, color: C.accent, fontWeight: '600' },
   navTitle: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
     alignItems: 'center', justifyContent: 'center',
+    pointerEvents: 'none',   // never swallow taps meant for Add Friend
   },
-  navBtn: { justifyContent: 'center' },
-  navBtnText: { ...T.body, color: C.accent, fontWeight: '600' },
-  caption: { ...T.footnote, color: C.faint, marginTop: S.xs, marginBottom: S.lg },
+
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm + 2 },
+  chip: {
+    backgroundColor: C.accentWash, borderRadius: R.full,
+    paddingHorizontal: S.md - 2, paddingVertical: 5, marginTop: 6,
+  },
+  chipText: { ...T.caption, color: C.accent, fontWeight: '600' },
+  caption: { ...T.footnote, color: C.dim, marginTop: S.xs, marginBottom: S.lg },
+
   row: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,
-    paddingVertical: S.md, paddingHorizontal: S.md,
+    paddingVertical: S.md - 2, paddingHorizontal: S.md,
     borderBottomWidth: HAIRLINE, borderBottomColor: C.line,
+    borderRadius: R.md, ...CONTINUOUS,
   },
-  rowMe: {
-    backgroundColor: C.accentWash,
-    borderRadius: R.md, ...CONTINUOUS, borderBottomWidth: 0,
+  // Crimson only ever means "scrolling right now".
+  rowLive: {
+    backgroundColor: C.problemWash, borderBottomWidth: 0,
+    borderLeftWidth: 3, borderLeftColor: C.problem,
   },
-  rank: { ...T.headline, color: C.faint, width: 20, textAlign: 'right' },
-  dot: { width: 9, height: 9, borderRadius: R.full },
-  name: { ...T.headline, color: C.text },
-  sub: { ...T.footnote, color: C.dim, marginTop: 1 },
-  minutes: { ...T.title3, color: C.text, fontWeight: '600' },
+  rowMe: { backgroundColor: C.accentWash, borderBottomWidth: 0 },
+
+  rank: { ...T.headline, color: C.faint, width: 24, textAlign: 'center' },
+  medal: {
+    width: 24, height: 24, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  medalText: { ...T.footnote, color: '#140f0d', fontWeight: '800' },
+
+  nameRow: { flexDirection: 'row', alignItems: 'baseline', gap: S.sm },
+  name: { ...T.headline, color: C.text, flexShrink: 1 },
+  tag: { ...T.caption, fontWeight: '600' },
+  track: { height: 4, borderRadius: R.full, backgroundColor: C.card2, marginTop: 6, overflow: 'hidden' },
+  bar: { height: 4, borderRadius: R.full, backgroundColor: C.accent },
+
+  // Only appears on the row of whoever is scrolling, so nothing else gets squeezed.
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.sm },
+  liveText: { ...T.caption, color: C.problem, fontWeight: '600', flexShrink: 1 },
+  pull: {
+    backgroundColor: C.problem, borderRadius: R.sm, ...CONTINUOUS,
+    paddingHorizontal: S.md - 2, paddingVertical: 5,
+  },
+  pullText: { ...T.caption, color: '#fff', fontWeight: '700' },
+
+  rowRight: { alignItems: 'flex-end', minWidth: 62 },
+  minutes: { ...T.headline, color: C.text },
+  ratio: { ...T.caption, color: C.faint, marginTop: 1 },
+
   empty: { ...T.subhead, color: C.faint, marginTop: S.xl, lineHeight: 21 },
 });
