@@ -40,6 +40,10 @@ export type Breakdown = {
   hidden_today: number; hidden_week: number;
   apps: ServiceMinutes[];
 };
+export type QueuedMessage = {
+  id: string; to_id: string; to_name: string; text: string;
+  status: string; created_at: string; expires_at: string;
+};
 export type PrivacyApp = { service: string; label: string; category: string; visible: boolean };
 export type Privacy = { apps: PrivacyApp[] };
 
@@ -78,6 +82,8 @@ export const api = {
   friends: () => req<FriendState[]>('/friends'),
   addFriend: (invite_code: string) =>
     req<FriendState>('/friends/add', { method: 'POST', body: JSON.stringify({ invite_code }) }),
+  queueMessage: (target_id: string, text: string) =>
+    req<QueuedMessage>('/messages/queue', { method: 'POST', body: JSON.stringify({ target_id, text }) }),
   pullOut: (target_id: string, message?: string) =>
     req<Note>('/friends/pull-out', { method: 'POST', body: JSON.stringify({ target_id, message }) }),
   breakdown: (userId: string) => req<Breakdown>(`/people/${userId}/breakdown`),

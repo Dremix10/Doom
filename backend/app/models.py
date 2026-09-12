@@ -202,3 +202,25 @@ class Credential(Base):
     email: Mapped[str] = mapped_column(String(160), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class QueuedMessage(Base):
+    """A message a friend wrote now, for the agent to deliver at the right moment.
+
+    Fire-and-forget from the sender's side: they write it and it waits. Delivery
+    is decided in `agent/scheduled.py` — the next time the recipient is actually
+    doomscrolling, or when their historically worst stretch of the day comes
+    round, whichever lands first. Unsent messages expire so nothing surfaces
+    weeks later out of context.
+    """
+
+    __tablename__ = "queued_messages"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    from_user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), index=True)
+    to_user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | sent | expired
+    reason: Mapped[str] = mapped_column(String(64), default="")         # why it fired, for the log
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

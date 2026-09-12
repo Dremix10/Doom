@@ -10,6 +10,7 @@ from ..config import settings
 from ..db import db_session, utcnow
 from ..sessions import open_sessions, refresh_sessions
 from .policy import act_on_session, clear_expired_interrupts, evaluate_outcomes
+from .scheduled import deliver_due
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +21,9 @@ def tick() -> dict:
         refresh_sessions(db, utcnow())
         clear_expired_interrupts(db)
         evaluate_outcomes(db)
+        delivered = deliver_due(db)
+        if delivered:
+            actions["scheduled"] = delivered
         for session in open_sessions(db):
             action = act_on_session(db, session)
             actions[action] = actions.get(action, 0) + 1

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Breakdown, Decision, LeaderboardRow } from '../lib/api';
+import { ScheduleSheet } from './ScheduleSheet';
 import {
   Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, stateColor, stateWord, useColors, useStyles,
 } from '../lib/theme';
@@ -58,6 +59,7 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
 
   const isMe = !!row?.is_me;
   const personId = row?.id;
@@ -71,7 +73,7 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
   }, [personId, isMe]);
 
   useEffect(() => {
-    setMsg(''); setNote(''); setTimeline(null); setDetail(null); setShowAll(false);
+    setMsg(''); setNote(''); setTimeline(null); setDetail(null); setShowAll(false); setScheduling(false);
     if (row) loadDetail();
   }, [row, loadDetail]);
 
@@ -109,6 +111,17 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
           <View style={s.grabber} />
           {row && (
             <>
+              {!isMe && (
+                <View style={s.topBar}>
+                  <Pressable
+                    onPress={() => setScheduling(true)}
+                    hitSlop={8}
+                    style={({ pressed }) => [s.topBtn, pressed && { opacity: 0.6 }]}
+                  >
+                    <Text style={s.topBtnText}>Scheduled</Text>
+                  </Pressable>
+                </View>
+              )}
               <Text style={s.name}>{isMe ? 'You' : row.name}</Text>
               <View style={s.stateRow}>
                 <View style={[s.dot, { backgroundColor: stateColor(C, row.state) }]} />
@@ -216,6 +229,16 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {row && !isMe && (
+        <ScheduleSheet
+          visible={scheduling}
+          name={row.name}
+          targetId={row.id}
+          topService={topLabel}
+          onClose={() => setScheduling(false)}
+        />
+      )}
     </Modal>
   );
 }
@@ -252,6 +275,9 @@ const makeStyles = (C: Palette) => StyleSheet.create({
     ...Platform.select({ web: { maxWidth: 560, marginHorizontal: 'auto' as any }, default: {} }),
   },
   grabber: { width: 36, height: 5, borderRadius: R.full, backgroundColor: C.line, alignSelf: 'center', marginBottom: S.md },
+  topBar: { flexDirection: 'row', alignItems: 'center', minHeight: 26, marginBottom: S.xs },
+  topBtn: { justifyContent: 'center' },
+  topBtnText: { ...T.subhead, color: C.accent, fontWeight: '600' },
   name: { ...T.title1, color: C.text },
   stateRow: { flexDirection: 'row', alignItems: 'baseline', gap: S.sm, marginTop: S.xs },
   dot: { width: 9, height: 9, borderRadius: R.full },
