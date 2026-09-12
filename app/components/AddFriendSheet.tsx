@@ -116,6 +116,6 @@ const s = StyleSheet.create({
     backgroundColor: C.accent, borderRadius: R.md, ...CONTINUOUS,
     paddingHorizontal: S.xl, minHeight: MIN_TAP, justifyContent: 'center',
   },
-  btnText: { ...T.headline, color: '#fff' },
+  btnText: { ...T.headline, color: C.onAccent },
   msg: { ...T.subhead, color: C.drifting, marginTop: S.md },
 });

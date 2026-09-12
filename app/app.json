@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Nudge",
-    "slug": "nudge",
+    "name": "Doom",
+    "slug": "doom",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nudge",
+    "scheme": "doom",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0c0b0b",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -23,9 +23,9 @@
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/images/favicon.png",
-      "name": "Nudge",
-      "themeColor": "#0b0b0f",
-      "backgroundColor": "#0b0b0f",
+      "name": "Doom",
+      "themeColor": "#0c0b0b",
+      "backgroundColor": "#0c0b0b",
       "display": "standalone"
     },
     "plugins": [
@@ -35,7 +35,7 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0c0b0b"
         }
       ]
     ],

@@ -1,4 +1,4 @@
-# DigitalOcean App Platform spec: the Nudge API (Docker) + the web PWA (static site),
+# DigitalOcean App Platform spec: the Doom API (Docker) + the web PWA (static site),
 # both served over HTTPS. Deploy: doctl apps create --spec infra/digitalocean/app.yaml
 # (or paste in the App Platform UI). Set the secret values in the dashboard after.
 name: nudge
@@ -19,7 +19,7 @@ services:
       http_path: /health
     envs:
       - key: APP_NAME
-        value: Nudge
+        value: Doom
       - key: PUBLIC_API_URL
         value: ${APP_URL}
       # Notifications (Web Push). Generate with: python -m app.tools.vapid

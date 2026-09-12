@@ -49,7 +49,7 @@ export async function enablePush(): Promise<EnableResult> {
   }
   // Only iOS requires the app to be installed to the Home Screen first.
   if (isIOS() && !isStandalone()) {
-    return { ok: false, reason: 'On iPhone, first add Nudge to your Home Screen (Share → Add to Home Screen), open it from there, then turn on notifications.' };
+    return { ok: false, reason: 'On iPhone, first add Doom to your Home Screen (Share → Add to Home Screen), open it from there, then turn on notifications.' };
   }
   let cfg: { vapid_public_key: string; enabled: boolean };
   try { cfg = await api.pushConfig(); } catch { return { ok: false, reason: 'Could not reach the server.' }; }

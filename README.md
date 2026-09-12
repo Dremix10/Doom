@@ -1,4 +1,4 @@
-# Nudge
+# Doom
 
 **Screen-time accountability with zero settings.** Add your friends, and that's it.
 An agent watches your usage against *your own* baseline, decides when a session has
@@ -12,7 +12,7 @@ HackRice 16 · Work & Productivity track.
 ## Why this is different
 
 Every screen-time app makes *you* configure limits, schedules and blocklists, then
-you disable them the moment they're inconvenient. Nudge has none of that. It learns
+you disable them the moment they're inconvenient. Doom has none of that. It learns
 what's normal for you and only acts when a session is genuinely unusual — and the
 last line of defense is a human friend, not a timer you'll ignore.
 

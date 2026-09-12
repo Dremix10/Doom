@@ -2,7 +2,7 @@
 // native falls back to an in-memory value, which is enough for a hackathon build.
 import { Platform } from 'react-native';
 
-const KEY = 'nudge_token';
+const KEY = 'doom_token';
 let mem: string | null = null;
 
 export function getToken(): string | null {

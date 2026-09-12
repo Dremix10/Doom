@@ -13,7 +13,7 @@ with real notifications and (if the sensor is live) the feed actually stopping.
 
 ## The 2 minutes
 1. **Setup (15s).** "Screen-time apps make *you* set limits and blocklists. Nobody
-   does. Nudge has zero settings. You add friends, and an agent does the policy."
+   does. Doom has zero settings. You add friends, and an agent does the policy."
 2. **Drift (30s).** A scrolls TikTok. On B's Friends tab, A goes green -> amber
    -> red ("doomscrolling · 3× usual"), live. On A's You tab the agent log shows
    it *staying quiet* at 2× ("within range") then **nudging** at 3× — with a

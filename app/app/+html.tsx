@@ -23,8 +23,8 @@ export default function Root({ children }: { children: ReactNode }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Nudge" />
-        <meta name="theme-color" content="#0b0b0f" />
+        <meta name="apple-mobile-web-app-title" content="Doom" />
+        <meta name="theme-color" content="#0c0b0b" />
         <link rel="apple-touch-icon" href="/icon.png" />
         <link rel="icon" href="/icon.png" />
 

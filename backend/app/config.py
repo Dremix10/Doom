@@ -32,7 +32,7 @@ def _float(value: str | None, default: float) -> float:
 
 class Settings:
     # Placeholder display name. Change APP_NAME in .env once the team picks a name.
-    APP_NAME: str = os.getenv("APP_NAME", "Nudge")
+    APP_NAME: str = os.getenv("APP_NAME", "Doom")
     DATA_DIR: Path = Path(os.getenv("DATA_DIR", str(BACKEND_DIR / "data")))
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     PUBLIC_API_URL: str = os.getenv("PUBLIC_API_URL", "http://localhost:8000").rstrip("/")

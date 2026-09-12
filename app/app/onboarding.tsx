@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Wordmark } from '../components/Wordmark';
 import { useAuth } from '../lib/auth';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
 
@@ -56,7 +57,7 @@ export default function Onboarding() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={s.logo}>Nudge</Text>
+        <Wordmark size={44} />
         <Text style={s.tag}>Screen-time accountability with zero settings.</Text>
         <Text style={s.sub}>
           Add your friends, and that's it. An agent watches your usage against your own baseline
@@ -122,7 +123,7 @@ export default function Onboarding() {
           onPress={go}
           disabled={busy || !ready}
         >
-          {busy ? <ActivityIndicator color="#fff" /> : (
+          {busy ? <ActivityIndicator color={C.onAccent} /> : (
             <Text style={s.btnText}>{creating ? 'Create account' : 'Sign in'}</Text>
           )}
         </Pressable>
@@ -141,7 +142,6 @@ export default function Onboarding() {
 
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
-  logo: { ...T.largeTitle, color: C.text, fontSize: 44, lineHeight: 50, letterSpacing: -0.5 },
   tag: { ...T.title3, color: C.accent, marginTop: S.xs + 2 },
   sub: { ...T.callout, color: C.dim, lineHeight: 22, marginTop: S.md + 2 },
   segment: {
@@ -162,7 +162,7 @@ const s = StyleSheet.create({
     backgroundColor: C.accent, borderRadius: R.lg, ...CONTINUOUS, minHeight: MIN_TAP + 8,
     alignItems: 'center', justifyContent: 'center', marginTop: S.sm,
   },
-  btnText: { ...T.title3, color: '#fff', fontWeight: '600' },
+  btnText: { ...T.title3, color: C.onAccent, fontWeight: '600' },
   switchRow: { minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginTop: S.xs },
   switchText: { ...T.subhead, color: C.accent, fontWeight: '600' },
   fine: { ...T.footnote, color: C.faint, textAlign: 'center', marginTop: S.md },

@@ -1,4 +1,4 @@
-# Hosting Nudge on DigitalOcean
+# Hosting Doom on DigitalOcean
 
 You need two things online: the **API** (this backend) and the **web app**
 (the built `app/dist`). Simplest split: API on DigitalOcean, web app on any

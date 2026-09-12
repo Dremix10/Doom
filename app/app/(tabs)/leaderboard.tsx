@@ -12,6 +12,7 @@ import { api, Leaderboard as Board, LeaderboardRow } from '../../lib/api';
 import { MenuSection, TitleMenu } from '../../components/TitleMenu';
 import { PersonSheet } from '../../components/PersonSheet';
 import { AddFriendSheet } from '../../components/AddFriendSheet';
+import { Wordmark } from '../../components/Wordmark';
 import { C, T, S, R, CONTINUOUS, HAIRLINE, stateColor } from '../../lib/theme';
 
 const WINDOW_LABEL: Record<string, string> = { today: 'Today', week: 'This week' };
@@ -118,6 +119,11 @@ export default function LeaderboardScreen() {
           >
             <Text style={s.navBtnText}>Add Friend</Text>
           </Pressable>
+          {/* Absolutely positioned so the wordmark is centred on the screen, not
+              on whatever space the button leaves — the iOS nav-bar convention. */}
+          <View style={s.navTitle} pointerEvents="none">
+            <Wordmark size={19} />
+          </View>
         </View>
         <TitleMenu
           label={board?.group_id === ALL ? 'All friends' : group?.name ?? 'Leaderboard'}
@@ -167,7 +173,11 @@ export default function LeaderboardScreen() {
 
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
-  navBar: { flexDirection: 'row', alignItems: 'center', minHeight: 34, marginBottom: S.xs },
+  navBar: { flexDirection: 'row', alignItems: 'center', minHeight: 38, marginBottom: S.xs },
+  navTitle: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
   navBtn: { justifyContent: 'center' },
   navBtnText: { ...T.body, color: C.accent, fontWeight: '600' },
   caption: { ...T.footnote, color: C.faint, marginTop: S.xs, marginBottom: S.lg },
@@ -177,7 +187,7 @@ const s = StyleSheet.create({
     borderBottomWidth: HAIRLINE, borderBottomColor: C.line,
   },
   rowMe: {
-    backgroundColor: 'rgba(124,123,255,0.12)',
+    backgroundColor: C.accentWash,
     borderRadius: R.md, ...CONTINUOUS, borderBottomWidth: 0,
   },
   rank: { ...T.headline, color: C.faint, width: 20, textAlign: 'right' },

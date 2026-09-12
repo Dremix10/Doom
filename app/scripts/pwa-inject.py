@@ -11,7 +11,7 @@ HTML = Path(__file__).resolve().parents[1] / "dist" / "index.html"
 TAGS = """    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Nudge" />
+    <meta name="apple-mobile-web-app-title" content="Doom" />
     <link rel="apple-touch-icon" href="/icon.png" />
 """
 

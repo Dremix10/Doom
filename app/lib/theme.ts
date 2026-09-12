@@ -6,19 +6,21 @@
 import { Platform, StyleSheet } from 'react-native';
 
 export const C = {
-  bg: '#0b0b0f',
-  card: '#16161c',
-  card2: '#1e1e26',
-  line: '#2a2a34',
-  text: '#f4f4f7',
-  dim: '#a0a0ad',
-  faint: '#6b6b78',
-  accent: '#7c7bff',
-  accentDim: '#3a3a6a',
+  bg: '#0c0b0b',
+  card: '#171514',
+  card2: '#201d1b',
+  line: '#2e2a28',
+  text: '#f7f3ea',      // the wordmark cream
+  dim: '#a8a099',
+  faint: '#6f6862',
+  accent: '#ff5a2b',    // the clock wedge
+  accentDim: '#7a3420',
+  accentWash: 'rgba(255,90,43,0.13)',  // tint behind your own row
+  onAccent: '#140f0d',  // text on accent: 5.7:1, where white would be 3.1:1
   fine: '#3ecf8e',
-  drifting: '#f5a623',
-  problem: '#ff5c6c',
-  offline: '#5a5a66',
+  drifting: '#ffc53d',  // pushed to yellow, clear of the brand orange
+  problem: '#ff3b5c',   // pushed to crimson, likewise
+  offline: '#5f5852',
 };
 
 export const stateColor = (s: string): string =>

@@ -1,4 +1,4 @@
-# Nudge — dev shortcuts. Requires: python3.12, node.
+# Doom — dev shortcuts. Requires: python3.12, node.
 .PHONY: install seed backend demo app export clean
 
 install:  ## install backend + app deps

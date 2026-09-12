@@ -1,4 +1,4 @@
-// Service worker for Nudge Web Push. On iOS this runs only when the app has been
+// Service worker for Doom Web Push. On iOS this runs only when the app has been
 // added to the Home Screen (iOS 16.4+). It shows the nudge/pull-out as a system
 // notification and focuses the app when tapped.
 self.addEventListener('install', () => self.skipWaiting());
@@ -7,7 +7,7 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (_e) {}
-  const title = data.title || 'Nudge';
+  const title = data.title || 'Doom';
   const body = data.body || '';
   event.waitUntil(
     self.registration.showNotification(title, {

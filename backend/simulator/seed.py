@@ -7,7 +7,7 @@ built and demoed before any phone is streaming real DNS. Run:
 
 It prints each user's token and setup URL so you can log into the app as any of them.
 
-Nudge has no access to real iOS screen time (Apple gates it behind a paid
+Doom has no access to real iOS screen time (Apple gates it behind a paid
 developer account), so every number in the demo comes from here. Two things the
 leaderboard depends on: each persona spans all three service categories, and the
 current day is seeded up to *now* — otherwise the "Today" board is all zeros.
@@ -43,8 +43,8 @@ SOLO_FRIENDS = {"Demetris": ["Petros"]}
 
 # Every seeded user can be signed into with their email and this password, so the
 # demo works from the login screen and not only from a ?token= link.
-DEMO_PASSWORD = "nudge1234"
-EMAIL_DOMAIN = "nudge.app"
+DEMO_PASSWORD = "doom1234"
+EMAIL_DOMAIN = "doom.app"
 CATS = ["social", "entertainment", "productivity"]
 SERVICES_BY_CAT = {c: CATEGORIES[c]["services"] for c in CATS}
 SERVICES = [s for c in CATS for s in SERVICES_BY_CAT[c]]
