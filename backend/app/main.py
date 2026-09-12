@@ -113,6 +113,14 @@ def signup(body: schemas.SignupIn, db: Session = Depends(get_db)) -> schemas.Use
     db.flush()
     db.add(Credential(user_id=user.id, email=email, password_hash=hash_password(body.password)))
     db.flush()
+    # Seed friendships with the demo personas (accounts on @nudge.app) so a brand-new
+    # account's "All" board isn't empty. They populate the leaderboard but are never
+    # picked for a real nudge (they're never recently "available").
+    for pid in list(db.scalars(select(Credential.user_id).where(Credential.email.like("%@nudge.app")))):
+        for a, b in ((user.id, pid), (pid, user.id)):
+            if not db.get(Friendship, (a, b)):
+                db.add(Friendship(user_id=a, friend_id=b))
+    db.flush()
     return _user_out(user, db)
 
 
