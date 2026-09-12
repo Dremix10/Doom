@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  The web shell for the PWA. Nudge ships as a home-screen app (Apple blocks Screen
+  Time without a paid developer account), so this file is what makes it read as a
+  native iOS app rather than a website.
+
+  This is Expo's own SPA template with our additions. It is used *because*
+  app.json sets web.output = "single": in that mode the dev server and export
+  serve public/index.html and never render app/+html.tsx. Keep the
+  %LANG_ISO_CODE% and %WEB_TITLE% placeholders — the CLI substitutes them, and
+  appends the script tag and theme-color meta before </head>.
+-->
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) non-zero. Without
+         it every inset reads 0 and content sits under the Dynamic Island. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+
+    <!-- Launch from the home screen with no Safari chrome, content running under a
+         translucent status bar — the two things that sell "this is an app". -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nudge" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>%WEB_TITLE%</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+
+    <!-- App-shell polish. Each rule removes a "this is a web page" tell: the wrong
+         colour behind the rubber-band, blue tap flashes, text the OS decides to
+         resize, and the browser's own overscroll chaining. -->
+    <style id="nudge-app-shell">
+      html,
+      body {
+        background-color: #0b0b0f;
+        overscroll-behavior: none;
+      }
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+      /* Text selection reads as a web page; apps don't do it. Inputs keep it. */
+      body * {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      input,
+      textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

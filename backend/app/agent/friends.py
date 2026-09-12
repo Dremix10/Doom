@@ -83,7 +83,10 @@ def record_outcome(db: Session, user_id: str, friend_id: str, hour: int, success
     bucket = hour_bucket(hour)
     stat = db.get(FriendStat, (user_id, friend_id, bucket))
     if stat is None:
-        stat = FriendStat(user_id=user_id, friend_id=friend_id, hour_bucket=bucket)
+        # successes/failures carry a column default, which SQLAlchemy only applies at
+        # INSERT — a freshly built row holds None, so `+= 1` below would blow up.
+        stat = FriendStat(user_id=user_id, friend_id=friend_id, hour_bucket=bucket,
+                          successes=0, failures=0)
         db.add(stat)
     if success:
         stat.successes += 1

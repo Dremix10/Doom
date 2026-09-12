@@ -148,3 +148,26 @@ class DecisionLog(Base):
     features: Mapped[str] = mapped_column(Text, default="{}")
     source: Mapped[str] = mapped_column(String(16), default="fallback")  # gemini | fallback
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class Group(Base):
+    """A league: a named set of people who see each other on one leaderboard.
+
+    Groups, not friendships, decide who appears on the board. You can be in
+    several (roommates, study group, gym) and switch between them from the
+    leaderboard's title.
+    """
+
+    __tablename__ = "groups"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(60))
+    join_code: Mapped[str] = mapped_column(String(8), unique=True, default=new_invite_code)
+    created_by: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class GroupMember(Base):
+    __tablename__ = "group_members"
+    group_id: Mapped[str] = mapped_column(String(32), ForeignKey("groups.id"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id"), primary_key=True)
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

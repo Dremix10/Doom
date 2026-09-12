@@ -5,8 +5,8 @@ install:  ## install backend + app deps
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements.lock.txt
 	cd app && npm install
 
-seed:  ## wipe + seed 14 days of history for 4 users
-	cd backend && .venv/bin/python -m simulator.seed --reset --days 14
+seed:  ## wipe + seed 21 days of history for 4 users
+	cd backend && .venv/bin/python -m simulator.seed --reset --days 21
 
 backend:  ## run the API (reads backend/.env)
 	cd backend && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

@@ -10,19 +10,20 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
+from . import categories as cats
 from .config import settings
 from .db import get_db, init_db, utcnow
-from .models import (Friendship, Notification, DecisionLog, Intervention, PushSubscription,
-                     UsageSession, User)
+from .models import (ActivityMinute, Friendship, Group, GroupMember, Notification, DecisionLog,
+                     Intervention, PushSubscription, UsageSession, User)
 from . import schemas
 from .services import label
 from .sessions import effective_minutes
@@ -169,12 +170,184 @@ def list_friends(user: User = Depends(current_user), db: Session = Depends(get_d
     return [_friend_state(db, db.get(User, fid)) for fid in ids if db.get(User, fid)]
 
 
+# ---- groups ----------------------------------------------------------------
+
+def _group_out(db: Session, group: Group, user: User) -> schemas.GroupOut:
+    member_ids = list(db.scalars(select(GroupMember.user_id).where(GroupMember.group_id == group.id)))
+    names = [u.name for u in (db.get(User, i) for i in member_ids) if u]
+    return schemas.GroupOut(id=group.id, name=group.name, join_code=group.join_code,
+                            member_count=len(member_ids), members=names,
+                            is_owner=group.created_by == user.id)
+
+
+def _my_groups(db: Session, user: User) -> list[Group]:
+    ids = list(db.scalars(select(GroupMember.group_id).where(GroupMember.user_id == user.id)))
+    groups = [g for g in (db.get(Group, i) for i in ids) if g]
+    groups.sort(key=lambda g: g.created_at)
+    return groups
+
+
+def _shares_a_group(db: Session, a: User, b: User) -> bool:
+    mine = set(db.scalars(select(GroupMember.group_id).where(GroupMember.user_id == a.id)))
+    theirs = set(db.scalars(select(GroupMember.group_id).where(GroupMember.user_id == b.id)))
+    return bool(mine & theirs)
+
+
+@app.get("/groups", response_model=list[schemas.GroupOut])
+def list_groups(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    return [_group_out(db, g, user) for g in _my_groups(db, user)]
+
+
+@app.post("/groups", response_model=schemas.GroupOut)
+def create_group(body: schemas.CreateGroupIn, user: User = Depends(current_user),
+                 db: Session = Depends(get_db)):
+    name = (body.name or "").strip()[:60] or "New group"
+    group = Group(name=name, created_by=user.id)
+    db.add(group)
+    db.flush()
+    db.add(GroupMember(group_id=group.id, user_id=user.id))
+    db.flush()
+    return _group_out(db, group, user)
+
+
+@app.post("/groups/join", response_model=schemas.GroupOut)
+def join_group(body: schemas.JoinGroupIn, user: User = Depends(current_user),
+               db: Session = Depends(get_db)):
+    code = (body.join_code or "").strip().upper()
+    group = db.scalar(select(Group).where(Group.join_code == code))
+    if not group:
+        raise HTTPException(404, "no group with that code")
+    if not db.get(GroupMember, (group.id, user.id)):
+        db.add(GroupMember(group_id=group.id, user_id=user.id))
+        db.flush()
+    return _group_out(db, group, user)
+
+
+@app.post("/groups/{group_id}/leave")
+def leave_group(group_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    member = db.get(GroupMember, (group_id, user.id))
+    if member:
+        db.delete(member)
+        db.flush()
+    return {"ok": True}
+
+
+# ---- leaderboard -----------------------------------------------------------
+
+def _window_bounds(now: datetime, days: int) -> tuple[datetime, datetime]:
+    """`today` runs from midnight so it resets like a screen-time day; longer
+    windows are rolling, which keeps them full of seeded history."""
+    if days == 1:
+        return now.replace(hour=0, minute=0, second=0, microsecond=0), now
+    return now - timedelta(days=days), now
+
+
+def _active_minutes(db: Session, user_ids: list[str], services: list[str],
+                    start: datetime, end: datetime) -> dict[str, float]:
+    """Distinct minutes of activity per user. Counting distinct minutes (rather
+    than rows) means two apps in the same minute is one minute of screen time."""
+    rows = db.execute(
+        select(ActivityMinute.user_id, func.count(distinct(ActivityMinute.minute)))
+        .where(ActivityMinute.user_id.in_(user_ids),
+               ActivityMinute.service.in_(services),
+               ActivityMinute.minute >= start,
+               ActivityMinute.minute < end)
+        .group_by(ActivityMinute.user_id)
+    ).all()
+    return {uid: float(n) for uid, n in rows}
+
+
+def _top_services(db: Session, user_ids: list[str], services: list[str],
+                  start: datetime, end: datetime) -> dict[str, str]:
+    rows = db.execute(
+        select(ActivityMinute.user_id, ActivityMinute.service, func.count())
+        .where(ActivityMinute.user_id.in_(user_ids),
+               ActivityMinute.service.in_(services),
+               ActivityMinute.minute >= start,
+               ActivityMinute.minute < end)
+        .group_by(ActivityMinute.user_id, ActivityMinute.service)
+    ).all()
+    best: dict[str, tuple[str, int]] = {}
+    for uid, service, n in rows:
+        if uid not in best or n > best[uid][1]:
+            best[uid] = (service, n)
+    return {uid: service for uid, (service, _) in best.items()}
+
+
+@app.get("/leaderboard", response_model=schemas.LeaderboardOut)
+def leaderboard(group_id: str | None = None, category: str | None = None,
+                window: str | None = None, user: User = Depends(current_user),
+                db: Session = Depends(get_db)):
+    """Rank one group within one category — a league table.
+
+    Rank 1 is always the position you want: least time for social, entertainment
+    and total; most time for productivity. `ratio` compares each person to their
+    own 14-day baseline, so the board still reflects the "your own normal" idea
+    even though the ordering is absolute minutes.
+
+    Groups decide who is on the board. Someone with no groups yet still gets a
+    board of whoever they've added, so the screen is never empty.
+    """
+    cat_id, cat = cats.category(category)
+    win_id, days = cats.window_days(window)
+    services = cat["services"]
+    now = utcnow()
+    start, end = _window_bounds(now, days)
+
+    groups = _my_groups(db, user)
+    group = next((g for g in groups if g.id == group_id), None) or (groups[0] if groups else None)
+    if group:
+        member_ids = list(db.scalars(
+            select(GroupMember.user_id).where(GroupMember.group_id == group.id)))
+        people = [u for u in (db.get(User, i) for i in member_ids) if u]
+    else:
+        friend_ids = list(db.scalars(
+            select(Friendship.friend_id).where(Friendship.user_id == user.id)))
+        people = [user] + [f for f in (db.get(User, fid) for fid in friend_ids) if f]
+    ids = [p.id for p in people]
+
+    minutes = _active_minutes(db, ids, services, start, end)
+    tops = _top_services(db, ids, services, start, end)
+
+    # Baseline: the same stretch of days immediately before this window.
+    base_start = start - timedelta(days=cats.BASELINE_DAYS)
+    base_total = _active_minutes(db, ids, services, base_start, start)
+    expected = {uid: (base_total.get(uid, 0.0) / cats.BASELINE_DAYS) * days for uid in ids}
+
+    rows = []
+    for p in people:
+        mins = minutes.get(p.id, 0.0)
+        exp = expected.get(p.id, 0.0)
+        rows.append(schemas.LeaderboardRow(
+            id=p.id, name=p.name, rank=0, minutes=round(mins, 1),
+            ratio=round(mins / exp, 2) if exp > 0 else 0.0,
+            state=_friend_state(db, p).state, top_service=tops.get(p.id),
+            is_me=(p.id == user.id),
+        ))
+
+    rows.sort(key=lambda r: (r.minutes if cat["lower_is_better"] else -r.minutes, r.name))
+    for i, r in enumerate(rows, start=1):
+        r.rank = i
+
+    return schemas.LeaderboardOut(
+        group_id=group.id if group else None,
+        groups=[_group_out(db, g, user) for g in groups],
+        category=cat_id, window=win_id, lower_is_better=cat["lower_is_better"],
+        categories=[schemas.CategoryOut(id=k, label=v["label"], blurb=v["blurb"],
+                                        lower_is_better=v["lower_is_better"])
+                    for k, v in cats.CATEGORIES.items()],
+        windows=list(cats.WINDOWS),
+        rows=rows,
+    )
+
+
 @app.post("/friends/pull-out", response_model=schemas.NotificationOut)
 def pull_out(body: schemas.PullOutIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
     """A friend manually pulls someone out: notify them and briefly interrupt the app."""
     target = db.get(User, body.target_id)
-    if not target or not db.get(Friendship, (user.id, target.id)):
-        raise HTTPException(404, "not your friend")
+    reachable = target and (db.get(Friendship, (user.id, target.id)) or _shares_a_group(db, user, target))
+    if not reachable:
+        raise HTTPException(404, "not in any of your groups")
     session = db.scalar(select(UsageSession).where(
         UsageSession.user_id == target.id, UsageSession.ended_at.is_(None)
     ).order_by(UsageSession.started_at.desc()).limit(1))

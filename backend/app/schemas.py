@@ -54,6 +54,52 @@ class DecisionOut(BaseModel):
     created_at: datetime
 
 
+class GroupOut(BaseModel):
+    id: str
+    name: str
+    join_code: str
+    member_count: int
+    members: list[str]        # display names, for the subtitle on the groups list
+    is_owner: bool
+
+
+class CreateGroupIn(BaseModel):
+    name: str
+
+
+class JoinGroupIn(BaseModel):
+    join_code: str
+
+
+class LeaderboardRow(BaseModel):
+    id: str
+    name: str
+    rank: int
+    minutes: float          # in the selected window
+    ratio: float            # vs this person's own 14-day baseline, 0 when unknown
+    state: str              # fine | drifting | problem | offline — live, for the dot
+    top_service: str | None  # where most of those minutes went
+    is_me: bool
+
+
+class CategoryOut(BaseModel):
+    id: str
+    label: str
+    blurb: str
+    lower_is_better: bool
+
+
+class LeaderboardOut(BaseModel):
+    group_id: str | None
+    groups: list[GroupOut]
+    category: str
+    window: str
+    lower_is_better: bool
+    categories: list[CategoryOut]   # everything the title menu needs, in one call
+    windows: list[str]
+    rows: list[LeaderboardRow]
+
+
 class PullOutIn(BaseModel):
     target_id: str
     message: str | None = None
