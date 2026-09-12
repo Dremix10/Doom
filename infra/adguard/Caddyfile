@@ -1,0 +1,10 @@
+# Replace dns.YOURDOMAIN.com with your GoDaddy domain's A record -> this VM.
+# Caddy gets a free TLS cert automatically and reverse-proxies DoH to AdGuard.
+dns.YOURDOMAIN.com {
+    # DNS-over-HTTPS: AdGuard serves DoH on /dns-query, ClientID goes in the path
+    # (https://dns.YOURDOMAIN.com/dns-query/<clientid>).
+    reverse_proxy /dns-query* adguardhome:80
+}
+
+# The app + API can live on the same box on another subdomain if you like:
+# api.YOURDOMAIN.com { reverse_proxy backend:8000 }

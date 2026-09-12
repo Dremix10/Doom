@@ -1,0 +1,34 @@
+# AdGuard Home = the DNS sensor + the enforcement point.
+# - Reads: the query log tells us which service each phone is hitting.
+# - Writes: per-client blocked_services is how "pull out" actually stops the feed.
+#
+# Deploy on the Vultr VM. Put a TLS cert on your GoDaddy domain in front (Caddy
+# below does this automatically), so the iPhone DoH profile can connect.
+services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    restart: unless-stopped
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf
+    ports:
+      - "3000:3000"     # initial setup UI (first run only)
+      - "80:80"         # admin UI after setup
+      - "853:853"       # DoT (optional)
+      - "5353:53/udp"   # plain DNS (internal only; phones use DoH via Caddy)
+      - "5353:53/tcp"
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy-data:/data
+      - ./caddy-config:/config
+    depends_on:
+      - adguardhome

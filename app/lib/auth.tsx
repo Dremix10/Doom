@@ -1,0 +1,53 @@
+// Auth context: holds the current user, exposes signup/login/logout, and a
+// heartbeat so friends see you as "available" while the app is open.
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { api, Me } from './api';
+import { getToken, setToken } from './store';
+
+type AuthCtx = {
+  me: Me | null;
+  loading: boolean;
+  signup: (name: string, phone?: string) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
+  refresh: () => Promise<void>;
+  logout: () => void;
+};
+
+const Ctx = createContext<AuthCtx>({} as AuthCtx);
+export const useAuth = () => useContext(Ctx);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [me, setMe] = useState<Me | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!getToken()) { setMe(null); return; }
+    try { setMe(await api.me()); } catch { setToken(null); setMe(null); }
+  }, []);
+
+  useEffect(() => { (async () => { await refresh(); setLoading(false); })(); }, [refresh]);
+
+  // Heartbeat every 30s so availability-based friend selection works.
+  useEffect(() => {
+    if (!me) return;
+    const id = setInterval(() => { api.heartbeat().catch(() => {}); }, 30000);
+    api.heartbeat().catch(() => {});
+    return () => clearInterval(id);
+  }, [me]);
+
+  const signup = async (name: string, phone?: string) => {
+    const u = await api.signup(name, phone);
+    setToken(u.token); setMe(u);
+  };
+  const loginWithToken = async (token: string) => {
+    setToken(token.trim());
+    const u = await api.me(); setMe(u);
+  };
+  const logout = () => { setToken(null); setMe(null); };
+
+  return (
+    <Ctx.Provider value={{ me, loading, signup, loginWithToken, refresh, logout }}>
+      {children}
+    </Ctx.Provider>
+  );
+}
