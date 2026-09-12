@@ -13,3 +13,5 @@ pywebpush>=2.0
 twilio>=9.0
 # Postgres / Tiger Data (Timescale). Not needed for local SQLite.
 psycopg[binary]>=3.1
+# Claude agent brain
+anthropic>=0.40

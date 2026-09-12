@@ -79,6 +79,7 @@ def health(db: Session = Depends(get_db)) -> dict:
     return {
         "ok": True, "app": settings.APP_NAME, "demo_mode": settings.DEMO_MODE,
         "sensor_enabled": settings.sensor_enabled, "gemini": bool(settings.GEMINI_API_KEY),
+        "brain": ("claude" if settings.ANTHROPIC_API_KEY else "gemini" if settings.GEMINI_API_KEY else "fallback"),
         "users": db.scalar(select(__import__("sqlalchemy").func.count(User.id))) or 0,
     }
 

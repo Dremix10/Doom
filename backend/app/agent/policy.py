@@ -24,6 +24,7 @@ from ..services import label
 from ..delivery import notify, voice
 from . import friends as friends_mod
 from . import gemini
+from . import claude_agent
 from .features import build_features, problem_score
 
 log = logging.getLogger(__name__)
@@ -152,7 +153,8 @@ def act_on_session(db: Session, session: UsageSession) -> str:
         return "quiet"
 
     friend = friends_mod.choose_friend(db, session.user_id) if can_escalate else None
-    decision, source = gemini.decide(feats, state, allow_escalate=can_escalate, friend_hint=friend.name if friend else None)
+    _llm = claude_agent if settings.ANTHROPIC_API_KEY else gemini
+    decision, source = _llm.decide(feats, state, allow_escalate=can_escalate, friend_hint=friend.name if friend else None)
     action = decision.get("action", "quiet")
     if action == "escalate" and not can_escalate:
         action = "nudge"
