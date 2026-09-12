@@ -3,7 +3,7 @@
 // and Music do. expo-symbols can't help here: on web it substitutes Material
 // Symbols, which would make the PWA look like Android.
 import Svg, { Circle, Path, Rect, G } from 'react-native-svg';
-import { C } from '../lib/theme';
+import { useColors } from '../lib/theme';
 
 export type IconName = 'person' | 'people' | 'gear' | 'chart' | 'chevron' | 'chevronDown' | 'check';
 
@@ -16,7 +16,10 @@ type Props = {
   bg?: string;
 };
 
-export function Icon({ name, size = 26, color = C.text, bg = C.card }: Props) {
+export function Icon({ name, size = 26, color: colorProp, bg: bgProp }: Props) {
+  const C = useColors();
+  const color = colorProp ?? C.text;
+  const bg = bgProp ?? C.card;
   const p = { width: size, height: size, viewBox: '0 0 24 24' };
 
   if (name === 'person') {

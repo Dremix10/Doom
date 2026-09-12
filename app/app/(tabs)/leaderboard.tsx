@@ -22,7 +22,7 @@ import { MenuSection, TitleMenu } from '../../components/TitleMenu';
 import { PersonSheet } from '../../components/PersonSheet';
 import { AddFriendSheet } from '../../components/AddFriendSheet';
 import { Wordmark } from '../../components/Wordmark';
-import { C, T, S, R, CONTINUOUS, HAIRLINE } from '../../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, useColors, useStyles } from '../../lib/theme';
 
 const WINDOW_LABEL: Record<string, string> = { today: 'Today', week: 'This week' };
 // The pill has to fit beside a large title, so it gets the short forms.
@@ -49,6 +49,8 @@ function duration(mins: number): string {
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [category, setCategory] = useState('social');
   const [period, setPeriod] = useState('today');
@@ -241,10 +243,13 @@ export default function LeaderboardScreen() {
 // Medals for the top three, as filled badges rather than coloured numerals: a
 // gold numeral would read as the `drifting` state and a bronze one as the accent,
 // but nothing else on this screen is a filled circle.
-const MEDAL: Record<number, string> = { 1: C.gold, 2: C.silver, 3: C.bronze };
+const medalFor = (C: Palette, rank: number): string | undefined =>
+  ({ 1: C.gold, 2: C.silver, 3: C.bronze } as Record<number, string>)[rank];
 
 function RankBadge({ rank }: { rank: number }) {
-  const medal = MEDAL[rank];
+  const C = useColors();
+  const s = useStyles(makeStyles);
+  const medal = medalFor(C, rank);
   if (!medal) return <Text style={s.rank}>{rank}</Text>;
   return (
     <View style={[s.medal, { backgroundColor: medal }]}>
@@ -253,7 +258,7 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   navBar: { flexDirection: 'row', alignItems: 'center', minHeight: 38, marginBottom: S.xs },
   navBtn: { justifyContent: 'center' },

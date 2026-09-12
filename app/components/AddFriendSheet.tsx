@@ -6,13 +6,15 @@ import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../lib/theme';
 
 type Props = { visible: boolean; onClose: () => void; onAdded: () => void };
 
 export function AddFriendSheet({ visible, onClose, onAdded }: Props) {
   const { me } = useAuth();
   const insets = useSafeAreaInsets();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -78,7 +80,7 @@ export function AddFriendSheet({ visible, onClose, onAdded }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0,

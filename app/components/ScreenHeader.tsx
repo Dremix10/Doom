@@ -4,10 +4,12 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
-import { C, T, S, MIN_TAP } from '../lib/theme';
+import { Palette, T, S, MIN_TAP, useColors, useStyles } from '../lib/theme';
 
 export function ScreenHeader({ title, back = 'Settings' }: { title: string; back?: string }) {
   const insets = useSafeAreaInsets();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   return (
     <View style={{ paddingTop: (insets.top || S.md) + S.sm }}>
       <Pressable
@@ -25,7 +27,7 @@ export function ScreenHeader({ title, back = 'Settings' }: { title: string; back
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: MIN_TAP - 8, alignSelf: 'flex-start' },
   caret: { transform: [{ rotate: '180deg' }] },
   backText: { ...T.body, color: C.accent },

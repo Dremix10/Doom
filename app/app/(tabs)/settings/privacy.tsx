@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { api, PrivacyApp } from '../../../lib/api';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../../../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../../../lib/theme';
 
 const CATEGORY_ORDER = ['social', 'entertainment', 'productivity'];
 const CATEGORY_LABEL: Record<string, string> = {
@@ -16,6 +16,8 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 export default function Privacy() {
   const [apps, setApps] = useState<PrivacyApp[]>([]);
+  const C = useColors();
+  const s = useStyles(makeStyles);
 
   const load = useCallback(async () => {
     try { setApps((await api.privacy()).apps); } catch { /* ignore */ }
@@ -71,7 +73,7 @@ export default function Privacy() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   intro: { ...T.subhead, color: C.dim, lineHeight: 21, marginBottom: S.lg },
   section: { marginBottom: S.lg },

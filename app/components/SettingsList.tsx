@@ -4,11 +4,12 @@
 import { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from './Icon';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../lib/theme';
 
 export function Section({ title, children, footer }: {
   title?: string; children: ReactNode; footer?: string;
 }) {
+  const s = useStyles(makeStyles);
   return (
     <View style={s.section}>
       {!!title && <Text style={s.sectionTitle}>{title}</Text>}
@@ -26,6 +27,8 @@ export function Row({ label, value, onPress, first, destructive, disabled }: {
   destructive?: boolean;
   disabled?: boolean;
 }) {
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const body = (
     <>
       <Text style={[s.label, destructive && { color: C.problem }, disabled && { color: C.faint }]}>
@@ -47,7 +50,7 @@ export function Row({ label, value, onPress, first, destructive, disabled }: {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   section: { marginBottom: S.xl },
   sectionTitle: {
     ...T.footnote, fontWeight: '600', color: C.dim, textTransform: 'uppercase',

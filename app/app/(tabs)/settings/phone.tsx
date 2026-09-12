@@ -4,10 +4,12 @@
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../../lib/auth';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../../../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../../../lib/theme';
 
 export default function Phone() {
   const { me } = useAuth();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   if (!me) return null;
 
   return (
@@ -49,7 +51,7 @@ export default function Phone() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   intro: { ...T.subhead, color: C.dim, lineHeight: 21, marginBottom: S.lg },
   card: {

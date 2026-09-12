@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { enablePush, isIOS, isStandalone, permissionState, pushSupported } from '../../../lib/push';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../../../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../../../lib/theme';
 
 export default function Notifications() {
   const [on, setOn] = useState(permissionState() === 'granted');
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -60,7 +62,7 @@ export default function Notifications() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   card: {
     backgroundColor: C.card, borderRadius: R.lg, ...CONTINUOUS, padding: S.lg,

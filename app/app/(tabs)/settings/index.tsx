@@ -10,11 +10,14 @@ import { api, Group, PrivacyApp } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { permissionState } from '../../../lib/push';
 import { Row, Section } from '../../../components/SettingsList';
-import { C, T, S, R, CONTINUOUS, HAIRLINE } from '../../../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, useColors, useStyles, useTheme } from '../../../lib/theme';
 
 export default function SettingsIndex() {
   const { me } = useAuth();
   const insets = useSafeAreaInsets();
+  const { mode, resolved } = useTheme();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [groups, setGroups] = useState<Group[]>([]);
   const [privacy, setPrivacy] = useState<PrivacyApp[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +67,11 @@ export default function SettingsIndex() {
           value={pushOn ? 'On' : 'Off'}
           onPress={() => router.push('/settings/notifications')}
         />
+        <Row
+          label="Appearance"
+          value={mode === 'system' ? `System · ${resolved}` : mode === 'light' ? 'Light' : 'Dark'}
+          onPress={() => router.push('/settings/appearance')}
+        />
       </Section>
 
       <Section title="Social">
@@ -92,7 +100,7 @@ export default function SettingsIndex() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   h1: { ...T.largeTitle, color: C.text, marginBottom: S.lg },
   identity: {

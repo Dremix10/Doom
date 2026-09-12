@@ -5,10 +5,12 @@ import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { Row, Section } from '../../../components/SettingsList';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { C, T, S } from '../../../lib/theme';
+import { Palette, T, S, useColors, useStyles } from '../../../lib/theme';
 
 export default function Account() {
   const { me, refresh, logout } = useAuth();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
   if (!me) return null;
 
@@ -61,7 +63,7 @@ export default function Account() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   meta: { ...T.caption, color: C.faint, textAlign: 'center', marginTop: S.xs },
 });

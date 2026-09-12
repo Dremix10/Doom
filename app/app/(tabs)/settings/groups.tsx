@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Group } from '../../../lib/api';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../../../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../../../lib/theme';
 
 export default function Groups() {
   const [groups, setGroups] = useState<Group[]>([]);
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
@@ -116,7 +118,7 @@ export default function Groups() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   intro: { ...T.subhead, color: C.dim, marginBottom: S.md },
   empty: { ...T.subhead, color: C.faint, lineHeight: 21, marginBottom: S.md },

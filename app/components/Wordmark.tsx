@@ -6,9 +6,10 @@
 // colours, instead of shipping a bitmap of the wordmark.
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
-import { C, FONT } from '../lib/theme';
+import { FONT, useColors } from '../lib/theme';
 
 export function Wordmark({ size = 19 }: { size?: number }) {
+  const C = useColors();
   // The clock stands in for a lowercase "o", so it matches x-height, not cap height.
   const glyph = size * 0.58;
   const letter = {
@@ -31,6 +32,7 @@ export function Wordmark({ size = 19 }: { size?: number }) {
 }
 
 function ClockGlyph({ size }: { size: number }) {
+  const C = useColors();
   // Heavy ring to match the weight of the letterforms next to it.
   const w = 3.6;
   return (

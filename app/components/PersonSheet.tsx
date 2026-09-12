@@ -12,14 +12,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Breakdown, Decision, LeaderboardRow } from '../lib/api';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, stateColor, stateWord } from '../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, stateColor, stateWord, useColors, useStyles } from '../lib/theme';
 
-const ACTION_META: Record<string, { label: string; color: string }> = {
+const actionMeta = (C: Palette): Record<string, { label: string; color: string }> => ({
   quiet: { label: 'stayed quiet', color: C.faint },
   nudge: { label: 'nudged you', color: C.drifting },
   escalate: { label: 'asked a friend', color: C.problem },
   interrupt: { label: 'paused the app', color: C.problem },
-};
+});
 
 function ago(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -41,6 +41,8 @@ type Props = { row: LeaderboardRow | null; onClose: () => void; onChanged: () =>
 export function PersonSheet({ row, onClose, onChanged }: Props) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [timeline, setTimeline] = useState<Decision[] | null>(null);
   const [detail, setDetail] = useState<Breakdown | null>(null);
   const [note, setNote] = useState('');
@@ -91,8 +93,8 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
           <ScrollView style={{ maxHeight: height * 0.68 }} contentContainerStyle={{ paddingBottom: S.md }}>
             <Text style={s.name}>{isMe ? 'You' : row.name}</Text>
             <View style={s.stateRow}>
-              <View style={[s.dot, { backgroundColor: stateColor(row.state) }]} />
-              <Text style={[s.state, { color: stateColor(row.state) }]}>{stateWord(row.state)}</Text>
+              <View style={[s.dot, { backgroundColor: stateColor(C, row.state) }]} />
+              <Text style={[s.state, { color: stateColor(C, row.state) }]}>{stateWord(row.state)}</Text>
             </View>
 
             <View style={s.stats}>
@@ -139,7 +141,8 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
                   <Text style={s.empty}>No decisions yet. Open a feed app and watch this fill in.</Text>
                 )}
                 {timeline?.slice(0, 12).map((d) => {
-                  const m = ACTION_META[d.action] || ACTION_META.quiet;
+                  const meta = actionMeta(C);
+                  const m = meta[d.action] || meta.quiet;
                   return (
                     <View key={d.id} style={s.logRow}>
                       <View style={[s.logDot, { backgroundColor: m.color }]} />
@@ -192,6 +195,8 @@ export function PersonSheet({ row, onClose, onChanged }: Props) {
 function AppRow({ label, today, week, peak, muted }: {
   label: string; today: number; week: number; peak: number; muted?: boolean;
 }) {
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const pct = Math.max(2, Math.round((week / peak) * 100));
   return (
     <View style={s.appRow}>
@@ -210,6 +215,7 @@ function AppRow({ label, today, week, peak, muted }: {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const s = useStyles(makeStyles);
   return (
     <View style={s.stat}>
       <Text style={s.statValue}>{value}</Text>
@@ -218,7 +224,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0,

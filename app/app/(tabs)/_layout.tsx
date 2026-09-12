@@ -5,15 +5,16 @@ import { Tabs } from 'expo-router';
 import { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '../../components/Icon';
-import { C, T, HAIRLINE, TAB_BAR_HEIGHT } from '../../lib/theme';
+import { T, HAIRLINE, TAB_BAR_HEIGHT, useColors } from '../../lib/theme';
 
 const tab = (name: IconName) =>
   function TabIcon({ color }: { color: ColorValue }) {
-    return <Icon name={name} color={color as string} bg={C.card} size={26} />;
+    return <Icon name={name} color={color as string} size={26} />;
   };
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const C = useColors();
 
   return (
     <Tabs

@@ -9,13 +9,15 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '../components/Wordmark';
 import { useAuth } from '../lib/auth';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../lib/theme';
 
 type Mode = 'in' | 'new';
 
 export default function Onboarding() {
   const { signup, login } = useAuth();
   const insets = useSafeAreaInsets();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const [mode, setMode] = useState<Mode>('in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -140,7 +142,7 @@ export default function Onboarding() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: C.bg },
   tag: { ...T.title3, color: C.accent, marginTop: S.xs + 2 },
   sub: { ...T.callout, color: C.dim, lineHeight: 22, marginTop: S.md + 2 },

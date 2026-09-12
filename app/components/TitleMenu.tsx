@@ -11,7 +11,7 @@ import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
-import { C, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP } from '../lib/theme';
+import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles } from '../lib/theme';
 
 export type MenuItem = { id: string; label: string; detail?: string; action?: boolean };
 export type MenuSection = { id: string; title: string; items: MenuItem[]; selected: string };
@@ -29,6 +29,8 @@ type Props = {
 export function TitleMenu({ label, sections, onSelect, variant = 'title', align = 'left' }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const C = useColors();
+  const s = useStyles(makeStyles);
   const ref = useRef<View>(null);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState({ x: S.gutter, y: 96, w: 0 });
@@ -98,7 +100,7 @@ export function TitleMenu({ label, sections, onSelect, variant = 'title', align 
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   trigger: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: S.sm - 2 },
   title: { ...T.largeTitle, color: C.text, flexShrink: 1 },
   caret: { marginTop: 4 },
