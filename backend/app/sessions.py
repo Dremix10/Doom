@@ -15,6 +15,9 @@ from .db import utcnow
 from .models import ActivityMinute, UsageSession
 
 
+SHORTCUT_MAX_OPEN_MIN = 120  # a missed 'close' must not count for hours
+
+
 def truncate_minute(ts: datetime) -> datetime:
     return ts.replace(second=0, microsecond=0)
 
@@ -50,6 +53,10 @@ def refresh_sessions(db: Session, now: datetime | None = None) -> None:
     # explicit "close" event (real app-switch), never by the activity-gap timer.
     for s in open_sessions(db):
         if s.source == "shortcut":
+            # Backstop: if the phone never sent "close", don't count it forever.
+            if (now - s.started_at).total_seconds() / 60.0 > SHORTCUT_MAX_OPEN_MIN:
+                s.ended_at = now
+                s.minutes = SHORTCUT_MAX_OPEN_MIN
             continue
         if now - s.last_active_at > gap:
             s.ended_at = s.last_active_at + timedelta(minutes=1)

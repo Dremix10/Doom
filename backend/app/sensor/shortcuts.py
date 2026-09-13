@@ -45,6 +45,13 @@ def normalize_service(app: str) -> str | None:
 
 
 def open_shortcut_session(db: Session, user: User, service: str) -> UsageSession:
+    # You can only be in one app at a time: opening this one closes any other open
+    # shortcut session, so a missed "close" automation can't leave one running.
+    for other in db.scalars(select(UsageSession).where(
+            UsageSession.user_id == user.id, UsageSession.ended_at.is_(None),
+            UsageSession.source == "shortcut", UsageSession.service != service)):
+        close_shortcut_session(db, user, other.service)
+
     existing = db.scalar(select(UsageSession).where(
         UsageSession.user_id == user.id, UsageSession.service == service,
         UsageSession.ended_at.is_(None), UsageSession.source == "shortcut"))
