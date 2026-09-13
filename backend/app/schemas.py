@@ -32,6 +32,7 @@ class UserOut(BaseModel):
 class FriendState(BaseModel):
     id: str
     name: str
+    shared_groups: list[str] = []   # empty means removing them actually does something
     state: str            # fine | drifting | problem | offline
     service: str | None
     minutes: float
@@ -69,6 +70,7 @@ class GroupOut(BaseModel):
     join_code: str
     member_count: int
     members: list[str]        # display names, for the subtitle on the groups list
+    member_ids: list[str]     # so the invite picker can skip people already in
     is_owner: bool
 
 
@@ -121,6 +123,9 @@ class BreakdownOut(BaseModel):
     id: str
     name: str
     is_me: bool
+    is_friend: bool
+    shared_groups: list[str]   # names; removing a friend you share a group with
+                               # is a no-op, so the sheet says so instead
     today_total: float
     week_total: float
     hidden_today: float      # minutes the owner has hidden — counted, not named
@@ -141,6 +146,10 @@ class PrivacyOut(BaseModel):
 
 class PrivacyIn(BaseModel):
     hidden: list[str]
+
+
+class InviteIn(BaseModel):
+    friend_id: str
 
 
 class PullOutIn(BaseModel):

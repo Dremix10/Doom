@@ -25,17 +25,19 @@ export type Me = {
 };
 export type FriendState = {
   id: string; name: string; state: string; service: string | null;
+  shared_groups: string[];
   minutes: number; ratio: number; last_seen_min: number | null;
 };
 export type Group = {
   id: string; name: string; join_code: string; member_count: number;
-  members: string[]; is_owner: boolean;
+  members: string[]; member_ids: string[]; is_owner: boolean;
 };
 export type ServiceMinutes = {
   service: string; label: string; category: string | null; today: number; week: number;
 };
 export type Breakdown = {
   id: string; name: string; is_me: boolean;
+  is_friend: boolean; shared_groups: string[];
   today_total: number; week_total: number;
   hidden_today: number; hidden_week: number;
   apps: ServiceMinutes[];
@@ -82,6 +84,9 @@ export const api = {
   friends: () => req<FriendState[]>('/friends'),
   addFriend: (invite_code: string) =>
     req<FriendState>('/friends/add', { method: 'POST', body: JSON.stringify({ invite_code }) }),
+  inviteToGroup: (groupId: string, friend_id: string) =>
+    req<Note>(`/groups/${groupId}/invite`, { method: 'POST', body: JSON.stringify({ friend_id }) }),
+  removeFriend: (friendId: string) => req<any>(`/friends/${friendId}`, { method: 'DELETE' }),
   queueMessage: (target_id: string, text: string) =>
     req<QueuedMessage>('/messages/queue', { method: 'POST', body: JSON.stringify({ target_id, text }) }),
   pullOut: (target_id: string, message?: string) =>

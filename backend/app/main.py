@@ -177,29 +177,32 @@ def add_friend(body: schemas.AddFriendIn, user: User = Depends(current_user), db
     return _friend_state(db, friend)
 
 
-def _friend_state(db: Session, friend: User) -> schemas.FriendState:
+def _friend_state(db: Session, friend: User, viewer: User | None = None) -> schemas.FriendState:
     now = utcnow()
     session = db.scalar(select(UsageSession).where(
         UsageSession.user_id == friend.id, UsageSession.ended_at.is_(None)
     ).order_by(UsageSession.started_at.desc()).limit(1))
     last_seen_min = (now - friend.last_seen_at).total_seconds() / 60.0 if friend.last_seen_at else None
+    shared = _shared_group_names(db, viewer, friend) if viewer else []
     if session:
         minutes = effective_minutes(session, now)
         from .agent.features import build_features, problem_score
         feats, base = build_features(db, session)
         _, state = problem_score(feats, base)
         return schemas.FriendState(id=friend.id, name=friend.name, state=state,
+                                   shared_groups=shared,
                                    service=session.service, minutes=round(minutes, 1),
                                    ratio=feats.ratio_p50, last_seen_min=last_seen_min)
     state = "offline" if (last_seen_min is None or last_seen_min > 20) else "fine"
     return schemas.FriendState(id=friend.id, name=friend.name, state=state, service=None,
+                               shared_groups=shared,
                                minutes=0.0, ratio=0.0, last_seen_min=last_seen_min)
 
 
 @app.get("/friends", response_model=list[schemas.FriendState])
 def list_friends(user: User = Depends(current_user), db: Session = Depends(get_db)):
     ids = list(db.scalars(select(Friendship.friend_id).where(Friendship.user_id == user.id)))
-    return [_friend_state(db, db.get(User, fid)) for fid in ids if db.get(User, fid)]
+    return [_friend_state(db, db.get(User, fid), user) for fid in ids if db.get(User, fid)]
 
 
 # ---- groups ----------------------------------------------------------------
@@ -212,6 +215,7 @@ def _group_out(db: Session, group: Group, user: User) -> schemas.GroupOut:
     names = [u.name for u in (db.get(User, i) for i in member_ids) if u]
     return schemas.GroupOut(id=group.id, name=group.name, join_code=group.join_code,
                             member_count=len(member_ids), members=names,
+                            member_ids=list(member_ids),
                             is_owner=group.created_by == user.id)
 
 
@@ -222,10 +226,18 @@ def _my_groups(db: Session, user: User) -> list[Group]:
     return groups
 
 
-def _shares_a_group(db: Session, a: User, b: User) -> bool:
+def _shared_group_ids(db: Session, a: User, b: User) -> set[str]:
     mine = set(db.scalars(select(GroupMember.group_id).where(GroupMember.user_id == a.id)))
     theirs = set(db.scalars(select(GroupMember.group_id).where(GroupMember.user_id == b.id)))
-    return bool(mine & theirs)
+    return mine & theirs
+
+
+def _shares_a_group(db: Session, a: User, b: User) -> bool:
+    return bool(_shared_group_ids(db, a, b))
+
+
+def _shared_group_names(db: Session, a: User, b: User) -> list[str]:
+    return [g.name for g in (db.get(Group, i) for i in _shared_group_ids(db, a, b)) if g]
 
 
 @app.get("/groups", response_model=list[schemas.GroupOut])
@@ -273,6 +285,56 @@ def leave_group(group_id: str, user: User = Depends(current_user), db: Session =
     if member:
         db.delete(member)
         db.flush()
+    return {"ok": True}
+
+
+@app.post("/groups/{group_id}/invite", response_model=schemas.NotificationOut)
+def invite_to_group(group_id: str, body: schemas.InviteIn, user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    """Invite a friend into a group you're in.
+
+    The invitation is an ordinary notification carrying the join code, so accepting
+    is just the existing join flow — no separate invite table to keep in sync.
+    """
+    group = db.get(Group, group_id)
+    if not group or not db.get(GroupMember, (group_id, user.id)):
+        raise HTTPException(404, "not one of your groups")
+    friend = db.get(User, body.friend_id)
+    if not friend or not db.get(Friendship, (user.id, friend.id)):
+        raise HTTPException(404, "not your friend")
+    if db.get(GroupMember, (group_id, friend.id)):
+        raise HTTPException(409, f"{friend.name} is already in {group.name}")
+
+    from .delivery import notify as notify_mod
+    note = notify_mod.send(
+        db, friend.id, "invite", f"{user.name} invited you to {group.name}",
+        f"Join with the code {group.join_code}.",
+        payload={"group_id": group.id, "group_name": group.name,
+                 "join_code": group.join_code, "from": user.name},
+    )
+    return _note_out(note)
+
+
+@app.delete("/friends/{friend_id}")
+def remove_friend(friend_id: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Drop a friendship, both directions.
+
+    Refused when you share a group: group membership is the stronger relationship
+    and grants the same visibility, so removing the friendship would change
+    nothing while looking like it had. Leaving the group is the real action — and
+    it deliberately does NOT eject anyone from a group as a side effect.
+    """
+    friend = db.get(User, friend_id)
+    if not friend:
+        raise HTTPException(404, "no such person")
+    shared = _shared_group_names(db, user, friend)
+    if shared:
+        raise HTTPException(409, f"You're both in {', '.join(shared)}. Leave the group to remove them.")
+    for a, b in ((user.id, friend.id), (friend.id, user.id)):
+        edge = db.get(Friendship, (a, b))
+        if edge:
+            db.delete(edge)
+    db.flush()
     return {"ok": True}
 
 
@@ -326,6 +388,8 @@ def breakdown(user_id: str, user: User = Depends(current_user), db: Session = De
     ]
     return schemas.BreakdownOut(
         id=person.id, name=person.name, is_me=is_me,
+        is_friend=bool(db.get(Friendship, (user.id, person.id))),
+        shared_groups=[] if is_me else _shared_group_names(db, user, person),
         today_total=sum(today.values()), week_total=sum(week.values()),
         hidden_today=sum(v for k, v in today.items() if k in hidden),
         hidden_week=sum(v for k, v in week.items() if k in hidden),

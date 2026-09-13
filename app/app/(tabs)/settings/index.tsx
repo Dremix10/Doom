@@ -20,12 +20,14 @@ export default function SettingsIndex() {
   const s = useStyles(makeStyles);
   const [groups, setGroups] = useState<Group[]>([]);
   const [privacy, setPrivacy] = useState<PrivacyApp[]>([]);
+  const [friends, setFriends] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [pushOn, setPushOn] = useState(permissionState() === 'granted');
 
   const load = useCallback(async () => {
     try { setGroups(await api.groups()); } catch { /* ignore */ }
     try { setPrivacy((await api.privacy()).apps); } catch { /* ignore */ }
+    try { setFriends((await api.friends()).length); } catch { /* ignore */ }
     setPushOn(permissionState() === 'granted');
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -77,6 +79,11 @@ export default function SettingsIndex() {
       <Section title="Social">
         <Row
           first
+          label="Your friends"
+          value={String(friends)}
+          onPress={() => router.push('/settings/friends')}
+        />
+        <Row
           label="Your groups"
           value={String(groups.length)}
           onPress={() => router.push('/settings/groups')}
