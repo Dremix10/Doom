@@ -373,7 +373,10 @@ def _window_bounds(now: datetime, days: int) -> tuple[datetime, datetime]:
     """`today` runs from midnight so it resets like a screen-time day; longer
     windows are rolling, which keeps them full of seeded history."""
     if days == 1:
-        return now.replace(hour=0, minute=0, second=0, microsecond=0), now
+        # Rolling last 24h rather than since-midnight, so the board stays populated
+        # across midnight (a "today" that empties at 00:00 looks broken during a
+        # late-night or morning demo).
+        return now - timedelta(days=1), now
     return now - timedelta(days=days), now
 
 
