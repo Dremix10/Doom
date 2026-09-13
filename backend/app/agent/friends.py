@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import utcnow
+from ..demo_data import persona_ids
 from ..models import Friendship, FriendStat, User, UsageSession
 
 AVAILABLE_WINDOW_MIN = 20
@@ -44,9 +45,12 @@ def candidates(db: Session, user_id: str, rng: np.random.Generator | None = None
     now = utcnow()
     bucket = hour_bucket(now.hour)
     out: list[FriendCandidate] = []
+    demo = persona_ids(db)
     for fid in _friend_ids(db, user_id):
         friend = db.get(User, fid)
-        if friend is None:
+        # A simulated friend can't actually step in, and choosing one would burn a
+        # real escalation on nobody.
+        if friend is None or fid in demo:
             continue
         stat = db.get(FriendStat, (user_id, fid, bucket))
         s = stat.successes if stat else 0
@@ -88,6 +92,10 @@ def record_outcome(db: Session, user_id: str, friend_id: str, hour: int, success
         stat = FriendStat(user_id=user_id, friend_id=friend_id, hour_bucket=bucket,
                           successes=0, failures=0)
         db.add(stat)
+        # Flush immediately: autoflush is off, and db.get() can't see a pending row,
+        # so a second call for the same (user, friend, bucket) in this same tick would
+        # add a SECOND row and the whole tick would die on the UNIQUE constraint.
+        db.flush()
     if success:
         stat.successes += 1
     else:

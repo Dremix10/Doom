@@ -20,6 +20,7 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
 from . import categories as cats
+from . import demo_data
 from .config import settings
 from .db import get_db, init_db, utcnow
 from .models import (ActivityMinute, Credential, Friendship, Group, GroupMember, HiddenService, Notification,
@@ -142,6 +143,21 @@ def login(body: schemas.LoginIn, db: Session = Depends(get_db)) -> schemas.UserO
 DEMO_GROUP_NAME = "Doom Demo"
 
 
+def _is_guest(db: Session, user: User) -> bool:
+    """A guest (judge) has no login — they came in through the demo button."""
+    return db.scalar(select(Credential).where(Credential.user_id == user.id)) is None
+
+
+def _display_name(db: Session, person: User, viewer: User | None = None) -> str:
+    """Names as shown in the app. Simulated people always say so; the real team is
+    pointed out to a judge so they know whose phone they're about to buzz."""
+    if person.id in demo_data.persona_ids(db):
+        return person.name + demo_data.DEMO_TAG
+    if viewer is not None and person.id in _hacker_ids(db) and _is_guest(db, viewer):
+        return person.name + " · hacker"
+    return person.name
+
+
 def _hacker_ids(db: Session) -> set[str]:
     """The real team: accounts with a login that isn't one of the demo personas."""
     return {c.user_id for c in db.scalars(
@@ -162,13 +178,16 @@ def guest(db: Session = Depends(get_db)) -> schemas.UserOut:
     user = User(name=f"Judge {n}")
     db.add(user)
     db.flush()
+    # The demo group is the team plus the simulated people, so a judge lands on a
+    # board that's actually populated and moving, with the fake rows marked "· demo".
+    personas = sorted(demo_data.persona_ids(db, fresh=True))
     if group is not None:
-        for uid in list(hackers) + [user.id]:
+        for uid in list(hackers) + personas + [user.id]:
             if not db.get(GroupMember, (group.id, uid)):
                 db.add(GroupMember(group_id=group.id, user_id=uid))
     # Friendships both ways: the guest can pull us out, and we show on their board.
-    for hid in hackers:
-        for a, b in ((user.id, hid), (hid, user.id)):
+    for other in list(hackers) + personas:
+        for a, b in ((user.id, other), (other, user.id)):
             if not db.get(Friendship, (a, b)):
                 db.add(Friendship(user_id=a, friend_id=b))
     db.flush()
@@ -236,12 +255,12 @@ def _friend_state(db: Session, friend: User, viewer: User | None = None) -> sche
         from .agent.features import build_features, problem_score
         feats, base = build_features(db, session)
         _, state = problem_score(feats, base)
-        return schemas.FriendState(id=friend.id, name=friend.name, state=state,
+        return schemas.FriendState(id=friend.id, name=_display_name(db, friend, viewer), state=state,
                                    shared_groups=shared,
                                    service=session.service, minutes=round(minutes, 1),
                                    ratio=feats.ratio_p50, last_seen_min=last_seen_min)
     state = "offline" if (last_seen_min is None or last_seen_min > 20) else "fine"
-    return schemas.FriendState(id=friend.id, name=friend.name, state=state, service=None,
+    return schemas.FriendState(id=friend.id, name=_display_name(db, friend, viewer), state=state, service=None,
                                shared_groups=shared,
                                minutes=0.0, ratio=0.0, last_seen_min=last_seen_min)
 
@@ -434,7 +453,7 @@ def breakdown(user_id: str, user: User = Depends(current_user), db: Session = De
         if svc not in hidden
     ]
     return schemas.BreakdownOut(
-        id=person.id, name=person.name, is_me=is_me,
+        id=person.id, name=_display_name(db, person, user), is_me=is_me,
         is_friend=bool(db.get(Friendship, (user.id, person.id))),
         shared_groups=[] if is_me else _shared_group_names(db, user, person),
         today_total=sum(today.values()), week_total=sum(week.values()),
@@ -577,15 +596,12 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
     base_total = _active_minutes(db, ids, services, base_start, start)
     expected = {uid: (base_total.get(uid, 0.0) / cats.BASELINE_DAYS) * days for uid in ids}
 
-    # A guest (judge) sees who the actual hackers are.
-    _viewer_is_guest = db.scalar(select(Credential).where(Credential.user_id == user.id)) is None
-    _tag_ids = _hacker_ids(db) if _viewer_is_guest else set()
     rows = []
     for p in people:
         mins = minutes.get(p.id, 0.0)
         exp = expected.get(p.id, 0.0)
         rows.append(schemas.LeaderboardRow(
-            id=p.id, name=p.name + (" · hacker" if p.id in _tag_ids else ""), rank=0, minutes=round(mins, 1),
+            id=p.id, name=_display_name(db, p, user), rank=0, minutes=round(mins, 1),
             ratio=round(mins / exp, 2) if exp > 0 else 0.0,
             state=_friend_state(db, p).state, top_service=tops.get(p.id),
             top_category=top_cats.get(p.id),

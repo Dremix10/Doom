@@ -21,6 +21,7 @@ from ..config import settings
 from ..db import utcnow
 from ..models import DecisionLog, Intervention, UsageSession, User
 from ..categories import is_policed
+from ..demo_data import is_persona
 from ..services import label
 from ..delivery import notify, voice
 from . import friends as friends_mod
@@ -126,6 +127,11 @@ def act_on_session(db: Session, session: UsageSession) -> str:
     feats, baseline = build_features(db, session)
     score, state = problem_score(feats, baseline)
     session.problem_score, session.state = score, state
+
+    # Simulated people populate the board and nothing else. They have no phone to
+    # buzz, so scoring them is useful but acting on them would be pure noise.
+    if is_persona(db, session.user_id):
+        return "quiet"
 
     now = utcnow()
     last_nudge = db.scalar(select(func.max(Intervention.created_at)).where(

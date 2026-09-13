@@ -8,6 +8,7 @@ import logging
 
 from ..config import settings
 from ..db import db_session, utcnow
+from ..demo_data import ensure_demo_activity
 from ..sessions import open_sessions, refresh_sessions
 from .policy import act_on_session, clear_expired_interrupts, evaluate_outcomes
 from .scheduled import deliver_due
@@ -18,6 +19,8 @@ log = logging.getLogger(__name__)
 def tick() -> dict:
     actions: dict[str, int] = {}
     with db_session() as db:
+        # Keep the simulated people on the board moving (cheap: fills the gap only).
+        ensure_demo_activity(db)
         refresh_sessions(db, utcnow())
         clear_expired_interrupts(db)
         evaluate_outcomes(db)
