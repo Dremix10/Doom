@@ -51,7 +51,8 @@ export type Privacy = { apps: PrivacyApp[] };
 
 export type LeaderboardRow = {
   id: string; name: string; rank: number; minutes: number; ratio: number;
-  state: string; top_service: string | null; is_me: boolean;
+  state: string; top_service: string | null; top_category: string | null;
+  category_minutes: Record<string, number>; hidden_minutes: number; is_me: boolean;
 };
 export type LeaderboardCategory = {
   id: string; label: string; blurb: string; lower_is_better: boolean;

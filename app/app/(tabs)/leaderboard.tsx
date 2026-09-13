@@ -40,6 +40,25 @@ const HIGH = 1.3;
 const LOW = 0.6;
 const notable = (ratio: number) => ratio > 0 && (ratio >= HIGH || ratio <= LOW);
 
+// Each bar is split into proportional segments: red for social, orange for
+// entertainment, green for productivity, and a neutral tail for apps the person
+// has hidden — those minutes are in the total and the rank, so dropping them
+// would make the bar shorter than the number beside it, but naming their category
+// would leak what was concealed.
+//
+// On a filtered board this degrades to a single colour, which is correct: on the
+// Social board every minute is social.
+//
+// State stays on the row (crimson wash, left edge, the drifting tag) rather than
+// on the bar, so the two never fight over red.
+const SEGMENTS = ['social', 'entertainment', 'productivity', 'hidden'] as const;
+
+const segmentColor = (C: Palette, key: string): string =>
+  key === 'social' ? C.problem
+  : key === 'entertainment' ? C.drifting
+  : key === 'productivity' ? C.fine
+  : C.offline;
+
 function duration(mins: number): string {
   const m = Math.round(mins);
   if (m < 60) return `${m}m`;
@@ -196,14 +215,13 @@ export default function LeaderboardScreen() {
                       {drifting && <Text style={[s.tag, { color: C.drifting }]}>drifting</Text>}
                     </View>
                     <View style={s.track}>
-                      <View
-                        style={[
-                          s.bar,
-                          { width: `${Math.max(2, Math.round((r.minutes / peak) * 100))}%` },
-                          live && { backgroundColor: C.problem },
-                          drifting && { backgroundColor: C.drifting },
-                        ]}
-                      />
+                      <View style={[s.bar, { width: `${Math.max(2, Math.round((r.minutes / peak) * 100))}%` }]}>
+                        {SEGMENTS.map((k) => {
+                          const mins = k === 'hidden' ? r.hidden_minutes : (r.category_minutes[k] ?? 0);
+                          if (mins <= 0) return null;
+                          return <View key={k} style={{ flex: mins, backgroundColor: segmentColor(C, k) }} />;
+                        })}
+                      </View>
                     </View>
                     {live && (
                       <View style={s.liveRow}>
@@ -304,7 +322,7 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   name: { ...T.headline, color: C.text, flexShrink: 1 },
   tag: { ...T.caption, fontWeight: '600' },
   track: { height: 4, borderRadius: R.full, backgroundColor: C.card2, marginTop: 6, overflow: 'hidden' },
-  bar: { height: 4, borderRadius: R.full, backgroundColor: C.accent },
+  bar: { height: 4, borderRadius: R.full, overflow: 'hidden', flexDirection: 'row' },
 
   // Only appears on the row of whoever is scrolling, so nothing else gets squeezed.
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.sm },
