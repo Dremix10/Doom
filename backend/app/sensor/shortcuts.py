@@ -15,6 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import utcnow
+from ..sessions import record_activity, truncate_minute
+from datetime import timedelta
 from ..models import UsageSession, User
 from ..services import DISTRACTING, label
 
@@ -67,6 +69,11 @@ def close_shortcut_session(db: Session, user: User, service: str) -> UsageSessio
     s.ended_at = now
     s.last_active_at = now
     s.minutes = max(0.2, (now - s.started_at).total_seconds() / 60.0)
+    # activity minutes across the span, so the closed session counts on the board
+    m = truncate_minute(s.started_at)
+    while m < now:
+        record_activity(db, user.id, service, m)
+        m += timedelta(minutes=1)
     return s
 
 

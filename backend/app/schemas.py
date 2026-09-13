@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel
+from typing import Annotated
+from pydantic import BaseModel, PlainSerializer
+
+# Serialize naive UTC datetimes with a trailing Z so browsers parse them as UTC
+# rather than local time (otherwise "x ago" goes negative and shows "0s ago").
+UTCDatetime = Annotated[datetime, PlainSerializer(
+    lambda v: v.isoformat() + ("Z" if v.tzinfo is None else ""),
+    return_type=str, when_used="json")]
+
 
 
 class SignupIn(BaseModel):
@@ -51,8 +59,8 @@ class NotificationOut(BaseModel):
     body: str
     audio_url: str | None
     payload: dict
-    created_at: datetime
-    read_at: datetime | None
+    created_at: UTCDatetime
+    read_at: UTCDatetime | None
 
 
 class DecisionOut(BaseModel):
@@ -61,7 +69,7 @@ class DecisionOut(BaseModel):
     justification: str
     service: str | None
     source: str
-    created_at: datetime
+    created_at: UTCDatetime
 
 
 class GroupOut(BaseModel):
@@ -168,8 +176,8 @@ class QueuedMessageOut(BaseModel):
     to_name: str
     text: str
     status: str
-    created_at: datetime
-    expires_at: datetime
+    created_at: UTCDatetime
+    expires_at: UTCDatetime
 
 
 class PushSubIn(BaseModel):

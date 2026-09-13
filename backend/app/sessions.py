@@ -55,6 +55,18 @@ def refresh_sessions(db: Session, now: datetime | None = None) -> None:
             s.ended_at = s.last_active_at + timedelta(minutes=1)
             s.minutes = _minutes(s.started_at, s.last_active_at)
 
+    # Shortcut sessions carry no DNS activity of their own; synthesize activity
+    # minutes up to now so they count on the leaderboard (which measures ActivityMinute).
+    for s in open_sessions(db):
+        if s.source != "shortcut":
+            continue
+        m = truncate_minute(s.last_active_at)
+        end_m = truncate_minute(now)
+        while m <= end_m:
+            record_activity(db, s.user_id, s.service, m)
+            m += timedelta(minutes=1)
+        s.last_active_at = now
+
     # Recent activity grouped by user and service.
     window_start = truncate_minute(now - gap - timedelta(minutes=1))
     stmt = (
