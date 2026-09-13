@@ -90,6 +90,13 @@ class LeaderboardRow(BaseModel):
     ratio: float            # vs this person's own 14-day baseline, 0 when unknown
     state: str              # fine | drifting | problem | offline — live, for the dot
     top_service: str | None  # where most of those minutes went
+    top_category: str | None  # and which category that was
+    # Minutes split by category, so the bar can be drawn as proportional segments
+    # rather than one flat colour. Hidden apps are counted in `hidden_minutes`:
+    # they belong in the total and the rank, but naming their category would leak
+    # what the person chose to conceal.
+    category_minutes: dict[str, float] = {}
+    hidden_minutes: float = 0.0
     is_me: bool
 
 

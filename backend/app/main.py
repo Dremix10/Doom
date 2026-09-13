@@ -461,7 +461,10 @@ def _active_minutes(db: Session, user_ids: list[str], services: list[str],
 
 
 def _top_services(db: Session, user_ids: list[str], services: list[str],
-                  start: datetime, end: datetime) -> dict[str, str]:
+                  start: datetime, end: datetime):
+    """Each person's biggest single app, and the category most of their time went
+    to. Hidden apps are excluded from both: the minutes still count toward the
+    total and the rank, but neither the app nor its category is named."""
     rows = db.execute(
         select(ActivityMinute.user_id, ActivityMinute.service, func.count())
         .where(ActivityMinute.user_id.in_(user_ids),
@@ -470,11 +473,24 @@ def _top_services(db: Session, user_ids: list[str], services: list[str],
                ActivityMinute.minute < end)
         .group_by(ActivityMinute.user_id, ActivityMinute.service)
     ).all()
+    hidden = {uid: _hidden_for(db, uid) for uid in user_ids}
     best: dict[str, tuple[str, int]] = {}
+    by_category: dict[str, dict[str, int]] = {}
+    hidden_mins: dict[str, float] = {}
     for uid, service, n in rows:
+        if service in hidden.get(uid, set()):
+            hidden_mins[uid] = hidden_mins.get(uid, 0.0) + float(n)
+            continue
         if uid not in best or n > best[uid][1]:
             best[uid] = (service, n)
-    return {uid: service for uid, (service, _) in best.items()}
+        cat = cats.service_category(service)
+        if cat:
+            counts = by_category.setdefault(uid, {})
+            counts[cat] = counts.get(cat, 0) + n
+    tops = {uid: service for uid, (service, _) in best.items()}
+    top_cats = {uid: max(c, key=c.get) for uid, c in by_category.items() if c}
+    per_cat = {uid: {k: float(v) for k, v in c.items()} for uid, c in by_category.items()}
+    return tops, top_cats, per_cat, hidden_mins
 
 
 @app.get("/leaderboard", response_model=schemas.LeaderboardOut)
@@ -515,7 +531,7 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
     ids = [p.id for p in people]
 
     minutes = _active_minutes(db, ids, services, start, end)
-    tops = _top_services(db, ids, services, start, end)
+    tops, top_cats, per_cat, hidden_mins = _top_services(db, ids, services, start, end)
 
     # Baseline: the same stretch of days immediately before this window.
     base_start = start - timedelta(days=cats.BASELINE_DAYS)
@@ -526,14 +542,13 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
     for p in people:
         mins = minutes.get(p.id, 0.0)
         exp = expected.get(p.id, 0.0)
-        top = tops.get(p.id)
-        # The minutes still count; we just don't say which app they were.
-        if top and p.id != user.id and top in _hidden_for(db, p.id):
-            top = None
         rows.append(schemas.LeaderboardRow(
             id=p.id, name=p.name, rank=0, minutes=round(mins, 1),
             ratio=round(mins / exp, 2) if exp > 0 else 0.0,
-            state=_friend_state(db, p).state, top_service=top,
+            state=_friend_state(db, p).state, top_service=tops.get(p.id),
+            top_category=top_cats.get(p.id),
+            category_minutes=per_cat.get(p.id, {}),
+            hidden_minutes=hidden_mins.get(p.id, 0.0),
             is_me=(p.id == user.id),
         ))
 
