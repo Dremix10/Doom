@@ -14,7 +14,7 @@ import { Palette, T, S, R, CONTINUOUS, HAIRLINE, MIN_TAP, useColors, useStyles }
 type Mode = 'in' | 'new';
 
 export default function Onboarding() {
-  const { signup, login } = useAuth();
+  const { signup, login, continueAsGuest } = useAuth();
   const insets = useSafeAreaInsets();
   const C = useColors();
   const s = useStyles(makeStyles);
@@ -40,6 +40,13 @@ export default function Onboarding() {
       setErr(e.message);
       setBusy(false);
     }
+  };
+
+  const goGuest = async () => {
+    if (busy) return;
+    setBusy(true); setErr('');
+    try { await continueAsGuest(); }
+    catch (e: any) { setErr(e.message); setBusy(false); }
   };
 
   const switchTo = (next: Mode) => { setMode(next); setErr(''); };
@@ -130,6 +137,18 @@ export default function Onboarding() {
           )}
         </Pressable>
 
+        <Pressable
+          onPress={goGuest}
+          disabled={busy}
+          style={({ pressed }) => [s.guestBtn, busy && { opacity: 0.5 }, pressed && { opacity: 0.75 }]}
+        >
+          <Text style={s.guestText}>Continue as guest (demo)</Text>
+        </Pressable>
+        <Text style={s.guestHint}>
+          Judges: no sign-up. You land in a group with the team (marked “hacker”) and can
+          pull us out of our own apps — it really buzzes our phones.
+        </Text>
+
         <Pressable onPress={() => switchTo(creating ? 'in' : 'new')} style={s.switchRow}>
           <Text style={s.switchText}>
             {creating ? 'Already have an account? Sign in' : "New here? Create an account"}
@@ -167,5 +186,12 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   btnText: { ...T.title3, color: C.onAccent, fontWeight: '600' },
   switchRow: { minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginTop: S.xs },
   switchText: { ...T.subhead, color: C.accent, fontWeight: '600' },
+  guestBtn: {
+    minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center',
+    borderRadius: R.md, ...CONTINUOUS, borderWidth: HAIRLINE, borderColor: C.line,
+    marginTop: S.md,
+  },
+  guestText: { ...T.headline, color: C.text },
+  guestHint: { ...T.caption, color: C.faint, textAlign: 'center', marginTop: S.sm, lineHeight: 17 },
   fine: { ...T.footnote, color: C.faint, textAlign: 'center', marginTop: S.md },
 });

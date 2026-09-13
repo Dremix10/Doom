@@ -9,6 +9,7 @@ type AuthCtx = {
   loading: boolean;
   signup: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  continueAsGuest: () => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
   refresh: () => Promise<void>;
   logout: () => void;
@@ -79,10 +80,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(token.trim());
     const u = await api.me(); setMe(u);
   };
+  const continueAsGuest = async () => {
+    const u = await api.guest();
+    setToken(u.token); setMe(u);
+  };
+
   const logout = () => { setToken(null); setMe(null); };
 
   return (
-    <Ctx.Provider value={{ me, loading, signup, login, loginWithToken, refresh, logout }}>
+    <Ctx.Provider value={{ me, loading, signup, login, continueAsGuest, loginWithToken, refresh, logout }}>
       {children}
     </Ctx.Provider>
   );

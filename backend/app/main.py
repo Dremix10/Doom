@@ -139,6 +139,42 @@ def login(body: schemas.LoginIn, db: Session = Depends(get_db)) -> schemas.UserO
     return _user_out(user, db)
 
 
+DEMO_GROUP_NAME = "Doom Demo"
+
+
+def _hacker_ids(db: Session) -> set[str]:
+    """The real team: accounts with a login that isn't one of the demo personas."""
+    return {c.user_id for c in db.scalars(
+        select(Credential).where(~Credential.email.like("%@doom.app")))}
+
+
+@app.post("/guest", response_model=schemas.UserOut)
+def guest(db: Session = Depends(get_db)) -> schemas.UserOut:
+    """No-signup demo account (for judges). Drops you into a group with the team so
+    you can see the live board and pull us out of our own apps."""
+    hackers = sorted(_hacker_ids(db))
+    group = db.scalar(select(Group).where(Group.name == DEMO_GROUP_NAME))
+    if group is None and hackers:
+        group = Group(name=DEMO_GROUP_NAME, created_by=hackers[0])
+        db.add(group)
+        db.flush()
+    n = (db.scalar(select(func.count()).select_from(User).where(User.name.like("Judge%"))) or 0) + 1
+    user = User(name=f"Judge {n}")
+    db.add(user)
+    db.flush()
+    if group is not None:
+        for uid in list(hackers) + [user.id]:
+            if not db.get(GroupMember, (group.id, uid)):
+                db.add(GroupMember(group_id=group.id, user_id=uid))
+    # Friendships both ways: the guest can pull us out, and we show on their board.
+    for hid in hackers:
+        for a, b in ((user.id, hid), (hid, user.id)):
+            if not db.get(Friendship, (a, b)):
+                db.add(Friendship(user_id=a, friend_id=b))
+    db.flush()
+    return _user_out(user, db)
+
+
 @app.get("/me", response_model=schemas.UserOut)
 def me(user: User = Depends(current_user), db: Session = Depends(get_db)) -> schemas.UserOut:
     return _user_out(user, db)
@@ -541,12 +577,15 @@ def leaderboard(group_id: str | None = None, category: str | None = None,
     base_total = _active_minutes(db, ids, services, base_start, start)
     expected = {uid: (base_total.get(uid, 0.0) / cats.BASELINE_DAYS) * days for uid in ids}
 
+    # A guest (judge) sees who the actual hackers are.
+    _viewer_is_guest = db.scalar(select(Credential).where(Credential.user_id == user.id)) is None
+    _tag_ids = _hacker_ids(db) if _viewer_is_guest else set()
     rows = []
     for p in people:
         mins = minutes.get(p.id, 0.0)
         exp = expected.get(p.id, 0.0)
         rows.append(schemas.LeaderboardRow(
-            id=p.id, name=p.name, rank=0, minutes=round(mins, 1),
+            id=p.id, name=p.name + (" · hacker" if p.id in _tag_ids else ""), rank=0, minutes=round(mins, 1),
             ratio=round(mins / exp, 2) if exp > 0 else 0.0,
             state=_friend_state(db, p).state, top_service=tops.get(p.id),
             top_category=top_cats.get(p.id),

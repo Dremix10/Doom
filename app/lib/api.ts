@@ -80,6 +80,7 @@ export const api = {
   login: (email: string, password: string) =>
     req<Me>('/login', { method: 'POST', body: JSON.stringify({ email, password }) }, false),
   me: () => req<Me>('/me'),
+  guest: () => req<Me>('/guest', { method: 'POST' }, false),
   personaVerify: () => req<Me>('/persona/verify', { method: 'POST' }),
   myStatus: () => req<FriendState>('/me/status'),
   friends: () => req<FriendState[]>('/friends'),
