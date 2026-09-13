@@ -9,6 +9,8 @@ does the policy work every other app pushes onto you.
 
 HackRice 16 · Work & Productivity track.
 
+**Try it: https://nudge.aegist.dev** — tap **Continue as guest (demo)**. No sign-up.
+
 ## Why this is different
 
 Every screen-time app makes *you* configure limits, schedules and blocklists, then
@@ -27,7 +29,7 @@ last line of defense is a human friend, not a timer you'll ignore.
                                                                     │
                                                      problem score (deterministic)
                                                                     │
-                                                     Gemini decision: quiet / nudge /
+                                                     Claude decision: quiet / nudge /
                                                        escalate(friend) + why
                                                                     │
                                      Thompson sampling picks the friend most likely
@@ -71,7 +73,7 @@ make app              # Expo app (press w for web, or scan for a phone)
 
 With nothing configured the backend runs on SQLite with a deterministic policy and
 an in-app inbox — enough to build and demo without any keys. Add keys in
-`backend/.env` (see `backend/.env.example`) to light up Gemini, ElevenLabs, the DNS
+`backend/.env` (see `backend/.env.example`) to light up Claude, ElevenLabs, the DNS
 sensor, Tiger Cloud, push and SMS.
 
 - Live demo script: `docs/DEMO.md`
@@ -82,7 +84,7 @@ sensor, Tiger Cloud, push and SMS.
 
 ```
 backend/   FastAPI API, the agent, the DNS sensor, and the simulator
-  app/agent/    baseline, features, problem score, Gemini, friend selection, policy, loop
+  app/agent/    baseline, features, problem score, Claude, friend selection, policy, loop
   app/sensor/   AdGuard client, query-log poller, iPhone profile generator
   app/delivery/ ElevenLabs voice, push/SMS/in-app notifications
   simulator/    seed.py (history) and live.py (drive a demo scroll)
@@ -98,6 +100,6 @@ Built at HackRice 16. Third-party components, all used via their public APIs/SDK
 - **AdGuard Home** (GPL-3.0) — DNS resolver + filtering, run unmodified via its HTTP API.
 - **AdGuard blocked-services catalogue** — hostname→service rules (`services_catalog.json`).
 - **Caddy** — automatic TLS for the DoH endpoint.
-- FastAPI, SQLAlchemy, Expo/React Native, and the Gemini, ElevenLabs, Persona,
+- FastAPI, SQLAlchemy, Expo/React Native, and the Anthropic (Claude), ElevenLabs, Persona,
   Twilio and pywebpush SDKs.
 - Apple `com.apple.dnsSettings.managed` configuration-profile format for the sensor.
