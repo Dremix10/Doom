@@ -192,6 +192,9 @@ def _friend_state(db: Session, friend: User, viewer: User | None = None) -> sche
     ).order_by(UsageSession.started_at.desc()).limit(1))
     last_seen_min = (now - friend.last_seen_at).total_seconds() / 60.0 if friend.last_seen_at else None
     shared = _shared_group_names(db, viewer, friend) if viewer else []
+    # A live productivity session is not a state the board should react to.
+    if session and not cats.is_policed(session.service):
+        session = None
     if session:
         minutes = effective_minutes(session, now)
         from .agent.features import build_features, problem_score

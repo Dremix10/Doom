@@ -52,6 +52,18 @@ LABELS = {
     "disneyplus": "Disney+", "twitch": "Twitch", "netflix": "Netflix",
 }
 
+# Categories the agent is allowed to intervene on. Productivity is excluded: a
+# long stretch in an editor is not doomscrolling, and scoring it the same way
+# meant a work session could be flagged as a problem, turn a board row crimson,
+# nudge the person and escalate to a friend. services.py always said "everything
+# else is ignored"; this is where that finally holds.
+POLICED_CATEGORIES = {"social", "entertainment"}
+
+
+def is_policed(service: str) -> bool:
+    return service_category(service) in POLICED_CATEGORIES
+
+
 DEFAULT_CATEGORY = "social"
 
 # Windows the leaderboard can cover, as a number of days back from now. "today"

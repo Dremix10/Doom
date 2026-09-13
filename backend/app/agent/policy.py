@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..db import utcnow
 from ..models import DecisionLog, Intervention, UsageSession, User
+from ..categories import is_policed
 from ..services import label
 from ..delivery import notify, voice
 from . import friends as friends_mod
@@ -117,6 +118,10 @@ def act_on_session(db: Session, session: UsageSession) -> str:
     """Evaluate one open session and take at most one action. Returns the action taken."""
     user = db.get(User, session.user_id)
     if user is None:
+        return "quiet"
+    # Working long isn't doomscrolling. Don't score it, don't act on it.
+    if not is_policed(session.service):
+        session.state = "fine"
         return "quiet"
     feats, baseline = build_features(db, session)
     score, state = problem_score(feats, baseline)
