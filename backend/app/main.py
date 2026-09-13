@@ -113,10 +113,10 @@ def signup(body: schemas.SignupIn, db: Session = Depends(get_db)) -> schemas.Use
     db.flush()
     db.add(Credential(user_id=user.id, email=email, password_hash=hash_password(body.password)))
     db.flush()
-    # Seed friendships with the demo personas (accounts on @nudge.app) so a brand-new
+    # Seed friendships with the demo personas (accounts on @doom.app) so a brand-new
     # account's "All" board isn't empty. They populate the leaderboard but are never
     # picked for a real nudge (they're never recently "available").
-    for pid in list(db.scalars(select(Credential.user_id).where(Credential.email.like("%@nudge.app")))):
+    for pid in list(db.scalars(select(Credential.user_id).where(Credential.email.like("%@doom.app")))):
         for a, b in ((user.id, pid), (pid, user.id)):
             if not db.get(Friendship, (a, b)):
                 db.add(Friendship(user_id=a, friend_id=b))
@@ -434,8 +434,9 @@ def set_privacy(body: schemas.PrivacyIn, user: User = Depends(current_user),
 # ---- leaderboard -----------------------------------------------------------
 
 def _window_bounds(now: datetime, days: int) -> tuple[datetime, datetime]:
-    """`today` runs from midnight so it resets like a screen-time day; longer
-    windows are rolling, which keeps them full of seeded history."""
+    """All windows are rolling. `today` deliberately means the last 24h rather
+    than since-midnight: a board that empties at 00:00 looks broken during a
+    late-night demo."""
     if days == 1:
         # Rolling last 24h rather than since-midnight, so the board stays populated
         # across midnight (a "today" that empties at 00:00 looks broken during a
