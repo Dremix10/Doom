@@ -22,6 +22,7 @@ import { MenuSection, TitleMenu } from '../../components/TitleMenu';
 import { PersonSheet } from '../../components/PersonSheet';
 import { AddFriendSheet } from '../../components/AddFriendSheet';
 import { Wordmark } from '../../components/Wordmark';
+import { Section } from '../../components/SettingsList';
 import { Palette, T, S, R, CONTINUOUS, HAIRLINE, useColors, useStyles } from '../../lib/theme';
 
 const WINDOW_LABEL: Record<string, string> = { today: 'Today', week: 'This week' };
@@ -170,60 +171,66 @@ export default function LeaderboardScreen() {
 
         {!board && <ActivityIndicator color={C.accent} style={{ marginTop: S.xxl }} />}
 
-        {rows.map((r) => {
-          const live = r.state === 'problem';
-          const drifting = r.state === 'drifting';
-          return (
-            <Pressable
-              key={r.id}
-              onPress={() => setSelected(r)}
-              style={({ pressed }) => [
-                s.row,
-                live && s.rowLive,
-                r.is_me && s.rowMe,
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              <RankBadge rank={r.rank} />
-              <View style={{ flex: 1 }}>
-                <View style={s.nameRow}>
-                  <Text style={s.name} numberOfLines={1}>{r.is_me ? 'You' : r.name}</Text>
-                  {drifting && <Text style={[s.tag, { color: C.drifting }]}>drifting</Text>}
-                </View>
-                <View style={s.track}>
-                  <View
-                    style={[
-                      s.bar,
-                      { width: `${Math.max(2, Math.round((r.minutes / peak) * 100))}%` },
-                      live && { backgroundColor: C.problem },
-                      drifting && { backgroundColor: C.drifting },
-                    ]}
-                  />
-                </View>
-                {live && (
-                  <View style={s.liveRow}>
-                    <Text style={s.liveText} numberOfLines={1}>
-                      {r.top_service ? `on ${r.top_service} now` : 'scrolling now'}
-                      {notable(r.ratio) ? ` · ${r.ratio.toFixed(1)}× usual` : ''}
-                    </Text>
-                    {!r.is_me && (
-                      <Pressable
-                        onPress={() => setSelected(r)}
-                        style={({ pressed }) => [s.pull, pressed && { opacity: 0.75 }]}
-                      >
-                        <Text style={s.pullText}>Pull out</Text>
-                      </Pressable>
+        {board && rows.length > 0 && (
+          <Section>
+            {rows.map((r, i) => {
+              const live = r.state === 'problem';
+              const drifting = r.state === 'drifting';
+              const last = i === rows.length - 1;
+              return (
+                <Pressable
+                  key={r.id}
+                  onPress={() => setSelected(r)}
+                  style={({ pressed }) => [
+                    s.row,
+                    last && s.rowLast,
+                    live && s.rowLive,
+                    r.is_me && s.rowMe,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <RankBadge rank={r.rank} />
+                  <View style={{ flex: 1 }}>
+                    <View style={s.nameRow}>
+                      <Text style={s.name} numberOfLines={1}>{r.is_me ? 'You' : r.name}</Text>
+                      {drifting && <Text style={[s.tag, { color: C.drifting }]}>drifting</Text>}
+                    </View>
+                    <View style={s.track}>
+                      <View
+                        style={[
+                          s.bar,
+                          { width: `${Math.max(2, Math.round((r.minutes / peak) * 100))}%` },
+                          live && { backgroundColor: C.problem },
+                          drifting && { backgroundColor: C.drifting },
+                        ]}
+                      />
+                    </View>
+                    {live && (
+                      <View style={s.liveRow}>
+                        <Text style={s.liveText} numberOfLines={1}>
+                          {r.top_service ? `on ${r.top_service} now` : 'scrolling now'}
+                          {notable(r.ratio) ? ` · ${r.ratio.toFixed(1)}× usual` : ''}
+                        </Text>
+                        {!r.is_me && (
+                          <Pressable
+                            onPress={() => setSelected(r)}
+                            style={({ pressed }) => [s.pull, pressed && { opacity: 0.75 }]}
+                          >
+                            <Text style={s.pullText}>Pull out</Text>
+                          </Pressable>
+                        )}
+                      </View>
                     )}
                   </View>
-                )}
-              </View>
-              <View style={s.rowRight}>
-                <Text style={s.minutes}>{duration(r.minutes)}</Text>
-                {notable(r.ratio) && <Text style={s.ratio}>{r.ratio.toFixed(1)}×</Text>}
-              </View>
-            </Pressable>
-          );
-        })}
+                  <View style={s.rowRight}>
+                    <Text style={s.minutes}>{duration(r.minutes)}</Text>
+                    {notable(r.ratio) && <Text style={s.ratio}>{r.ratio.toFixed(1)}×</Text>}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </Section>
+        )}
 
         {board && rows.length <= 1 && (
           <Text style={s.empty}>
@@ -274,16 +281,17 @@ const makeStyles = (C: Palette) => StyleSheet.create({
 
   row: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,
-    paddingVertical: S.md - 2, paddingHorizontal: S.md,
+    paddingVertical: S.md - 2, paddingHorizontal: S.lg,
     borderBottomWidth: HAIRLINE, borderBottomColor: C.line,
-    borderRadius: R.md, ...CONTINUOUS,
   },
-  // Crimson only ever means "scrolling right now".
+  rowLast: { borderBottomWidth: 0 },
+  // Crimson only ever means "scrolling right now". The card clips this, so the
+  // edge sits flush against its inner border.
   rowLive: {
-    backgroundColor: C.problemWash, borderBottomWidth: 0,
+    backgroundColor: C.problemWash,
     borderLeftWidth: 3, borderLeftColor: C.problem,
   },
-  rowMe: { backgroundColor: C.accentWash, borderBottomWidth: 0 },
+  rowMe: { backgroundColor: C.accentWash },
 
   rank: { ...T.headline, color: C.faint, width: 24, textAlign: 'center' },
   medal: {
