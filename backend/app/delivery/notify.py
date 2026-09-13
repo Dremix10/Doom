@@ -19,11 +19,16 @@ def _web_push(db: Session, user_id: str, title: str, body: str, payload: dict) -
     if not settings.VAPID_PRIVATE_KEY:
         return
     try:
-        from pywebpush import webpush, WebPushException  # noqa: F401
+        from pywebpush import webpush, WebPushException
 
         subs = list(db.scalars(select(PushSubscription).where(PushSubscription.user_id == user_id)))
         data = json.dumps({"title": title, "body": body, **payload})
+        seen: set[str] = set()
         for sub in subs:
+            if sub.endpoint in seen:  # duplicate row for one device -> one banner, not two
+                db.delete(sub)
+                continue
+            seen.add(sub.endpoint)
             try:
                 webpush(
                     subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
@@ -31,6 +36,12 @@ def _web_push(db: Session, user_id: str, title: str, body: str, payload: dict) -
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={"sub": settings.VAPID_SUBJECT},
                 )
+            except WebPushException as exc:
+                code = getattr(getattr(exc, "response", None), "status_code", None)
+                if code in (404, 410):  # expired/unsubscribed -> remove the stale row
+                    db.delete(sub)
+                else:
+                    log.info("web push to one endpoint failed: %s", exc)
             except Exception as exc:
                 log.info("web push to one endpoint failed: %s", exc)
     except Exception as exc:

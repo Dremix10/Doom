@@ -113,6 +113,14 @@ def signup(body: schemas.SignupIn, db: Session = Depends(get_db)) -> schemas.Use
     db.flush()
     db.add(Credential(user_id=user.id, email=email, password_hash=hash_password(body.password)))
     db.flush()
+    # Seed friendships with the demo personas (accounts on @nudge.app) so a brand-new
+    # account's "All" board isn't empty. They populate the leaderboard but are never
+    # picked for a real nudge (they're never recently "available").
+    for pid in list(db.scalars(select(Credential.user_id).where(Credential.email.like("%@nudge.app")))):
+        for a, b in ((user.id, pid), (pid, user.id)):
+            if not db.get(Friendship, (a, b)):
+                db.add(Friendship(user_id=a, friend_id=b))
+    db.flush()
     return _user_out(user, db)
 
 
@@ -429,7 +437,10 @@ def _window_bounds(now: datetime, days: int) -> tuple[datetime, datetime]:
     """`today` runs from midnight so it resets like a screen-time day; longer
     windows are rolling, which keeps them full of seeded history."""
     if days == 1:
-        return now.replace(hour=0, minute=0, second=0, microsecond=0), now
+        # Rolling last 24h rather than since-midnight, so the board stays populated
+        # across midnight (a "today" that empties at 00:00 looks broken during a
+        # late-night or morning demo).
+        return now - timedelta(days=1), now
     return now - timedelta(days=days), now
 
 
